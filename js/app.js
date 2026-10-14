@@ -6,7 +6,10 @@ import { el, renderReport, renderIssues, renderStructure } from './render.js';
 const $ = (id) => document.getElementById(id);
 const configured = !SUPABASE_URL.includes('DEIN-PROJEKT') && !SUPABASE_ANON_KEY.startsWith('DEIN-');
 
-const state = { user: null, messages: [], current: null, view: 'report', msg: null };
+const state = { user: null, messages: [], current: null, view: 'report', msg: null, scope: 'message' };
+// Alle sichtbaren Nachrichten für Fall- und Patientenansicht: id -> { title, report }
+let allReports = null;
+let allReportsLoading = false;
 // Gesichtet-Status nur lokal für die Sitzung (simuliert den Button im Viewer)
 const ack = new Set();
 ack.onchange = () => update();
@@ -71,7 +74,43 @@ async function loadList() {
     .order('title');
   if (error) { toast(`Laden fehlgeschlagen: ${error.message}`); return; }
   state.messages = data;
+  allReports = null;
   renderList();
+  if (state.scope !== 'message') update();
+}
+
+async function loadAllReports() {
+  if (allReports || allReportsLoading) return;
+  allReportsLoading = true;
+  const { data, error } = await sb.from('messages').select('id,title,hl7');
+  allReportsLoading = false;
+  if (error) { toast(`Laden fehlgeschlagen: ${error.message}`); return; }
+  allReports = new Map();
+  for (const m of data) {
+    try {
+      const report = buildReport(parseHl7(m.hl7));
+      if (report.type === 'ORU^R01') allReports.set(m.id, { title: m.title, report });
+    } catch { /* fehlerhafte Nachrichten ignorieren */ }
+  }
+  update();
+}
+
+// Weitere Nachrichten desselben Falls (PV1-19) bzw. Patienten (PID-3)
+function relatedReports(report) {
+  if (state.scope === 'message' || !allReports) return [];
+  const pid = report.patient.id;
+  const cid = report.visit.caseId;
+  if (!pid) return [];
+  return [...allReports.entries()]
+    .filter(([id]) => id !== state.current?.id)
+    .map(([, v]) => v)
+    .filter((v) => v.report.patient.id === pid && (state.scope === 'patient' || (cid && v.report.visit.caseId === cid)));
+}
+
+function setScope(scope) {
+  state.scope = scope;
+  if (scope !== 'message') loadAllReports();
+  update();
 }
 
 function renderList() {
@@ -185,12 +224,16 @@ function update() {
     return;
   }
   const report = buildReport(state.msg);
+  if (state.scope !== 'message' && !allReports) loadAllReports();
   const errors = report.issues.filter((i) => i.level === 'error').length;
   const warnings = report.issues.filter((i) => i.level === 'warning').length;
   $('tab-issues').textContent = `Prüfung${errors || warnings ? ` (${errors} F / ${warnings} W)` : ' ✓'}`;
   $('tab-issues').classList.toggle('has-errors', errors > 0);
   if (state.view === 'report') {
-    out.append(renderReport(report, ack));
+    out.append(renderReport(report, ack, {
+      scope: state.scope, onScope: setScope, others: relatedReports(report),
+      loading: state.scope !== 'message' && !allReports,
+    }));
   } else if (state.view === 'issues') {
     out.append(renderIssues(report, SPEC_VERSION));
   } else {

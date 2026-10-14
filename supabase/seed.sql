@@ -70,6 +70,30 @@ OBR|4|BK-4711||BKCMT1^Blood Culture Isolate - 1 - Remark^LAB|||20260712221500|||
 NTE|1|L|EUCAST clinical breakpoints v15.0.
 NTE|2|L|Further antibiotics on request.$hl7$, E'\n', E'\r'));
 
+insert into public.messages (owner_id, title, shared, hl7) values (null, 'Blutkultur – Endbefund (gleicher Fall)', true,
+  replace($hl7$MSH|^~\&|LABSYS|LABOR|iMedOne|KLINIKUM|20260716143000||ORU^R01|BK00000002|P|2.4|||AL|NE
+PID|1||4711002||MUSTERFRAU^ERIKA||19781103|F
+PV1|1|I|ITS1||||||||||||||||90004567
+ORC|RE|BK-4711|||CM
+OBR|1|BK-4711||BKISO1^Blood Culture Isolate - 1^LAB|||20260712221500|||||||20260712230000|BK&BLOOD CULTURE^^^VEN&Venous blood|||||||20260716143000||MB|F||||||MOI
+OBX|1|IS|ORG^Microorganism identified^LAB|1|Escherichia coli (ESBL)||||||F|||20260712221500
+OBX|2|ST|BOT^Bottles positive^LAB|1|2 of 2||||||F|||20260712221500
+OBR|2|BK-4711||BKABG1^Blood Culture Isolate - 1 - Antibiogram^LAB|||20260712221500|||||||20260712230000|BK&BLOOD CULTURE^^^VEN&Venous blood|||||||20260716143000||MB|F||||||ABG
+OBX|1|ST|AMP^Ampicillin^LAB|1|>8|mg/l||R|||F|||20260712221500|||Penicillins
+OBX|2|ST|PIT^Piperacillin/Tazobactam^LAB|1|16|mg/l||R|||F|||20260712221500|||Penicillins
+OBX|3|ST|CTX^Cefotaxime^LAB|1|>4|mg/l||R|||F|||20260712221500|||Cephalosporins
+OBX|4|ST|MEM^Meropenem^LAB|1|<=0.25|mg/l||S|||F|||20260712221500|||Carbapenems
+OBX|5|ST|CIP^Ciprofloxacin^LAB|1|>1|mg/l||R|||F|||20260712221500|||Fluoroquinolones
+OBX|6|ST|GEN^Gentamicin^LAB|1|<=1|mg/l||S|||F|||20260712221500|||Aminoglycosides$hl7$, E'\n', E'\r'));
+
+insert into public.messages (owner_id, title, shared, hl7) values (null, 'Urin – früherer Fall derselben Patientin', true,
+  replace($hl7$MSH|^~\&|LABSYS|LABOR|iMedOne|KLINIKUM|20260302101500||ORU^R01|UR00000003|P|2.4|||AL|NE
+PID|1||4711002||MUSTERFRAU^ERIKA||19781103|F
+PV1|1|O|||||||||||||||||90003210
+ORC|RE|UR-3001
+OBR|1|UR-3001||UCULT^Urine culture^LAB|||20260228084500||||||||UR&URINE MIDSTREAM|||||||20260302101500||MB|F
+OBX|1|ST|CULT^Culture^LAB||No significant growth||||||F|||20260228084500$hl7$, E'\n', E'\r'));
+
 insert into public.messages (owner_id, title, shared, hl7) values (null, 'Wundabstrich – Endbefund mit PDF-Dokument', true,
   replace($hl7$MSH|^~\&|LABSYS|LABOR|iMedOne|KLINIKUM|20260715101500||ORU^R01|DOC0000001|P|2.4|||AL|NE
 PID|1||4711003||MUSTERMANN^ERIK||19900101|M

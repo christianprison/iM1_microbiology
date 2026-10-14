@@ -165,7 +165,36 @@ function renderAntibiogram(obr, cmt) {
   return box;
 }
 
-export function renderReport(report, ack) {
+const SCOPES = [['message', 'Nachricht'], ['case', 'Fall'], ['patient', 'Patient']];
+
+function renderGroup(report, grp, ack, open, sourceTitle) {
+  const key = `${report.header.controlId}|${grp.collectedRaw}`;
+  const seen = ack.has(key);
+  const details = el('details', { class: `grp grp-${grp.status === 'F' ? 'final' : 'interim'}`, open: open ? '' : null },
+    el('summary', {},
+      `Entnahme ${grp.collected || '–'}${grp.specimenText ? ` Specimen:${grp.specimenText}` : ''}, ${grp.statusText} Ergebnisstatus`,
+      seen ? null : el('span', { class: 'unseen', text: ' (ungesichtete Ergebnisse)' })));
+  const ackBtn = el('button', {
+    class: seen ? 'small-btn' : 'secondary small-btn', type: 'button', text: seen ? 'gesichtet' : 'ungesichtet',
+    onclick: () => { if (seen) ack.delete(key); else ack.add(key); ack.onchange?.(); },
+  });
+  details.append(el('div', { class: 'grp-meta' },
+    el('span', {}, el('b', { text: 'Auftragsnr. ' }), grp.orderNo || '–'),
+    el('span', {}, el('b', { text: 'Befunddatum ' }), grp.resultTime || '–'),
+    el('span', {}, el('b', { text: 'Ergebnisstatus ' }), grp.statusText),
+    ackBtn));
+  if (sourceTitle) {
+    details.append(el('div', { class: 'grp-source', text: `aus Nachricht „${sourceTitle}“ · Fall ${report.visit.caseId || '–'}` }));
+  }
+  details.append(...grp.obrs.map((o, i, all) => renderObr(o, i, all)).filter(Boolean));
+  // Sprung zum Quellsegment nur für die aktuell bearbeitete Nachricht
+  if (sourceTitle) details.querySelectorAll('[data-seg]').forEach((n) => { delete n.dataset.seg; });
+  return details;
+}
+
+// opts.scope: 'message' | 'case' | 'patient'; opts.others: [{ title, report }] weitere Nachrichten desselben Falls/Patienten
+export function renderReport(report, ack, opts = {}) {
+  const scope = opts.scope || 'message';
   const root = el('div', { class: 'report' });
   const p = report.patient;
   const name = [[p.prefix, p.family].filter(Boolean).join(' '), [p.given, p.middle].filter(Boolean).join(' ')].filter(Boolean).join(', ');
@@ -186,30 +215,27 @@ export function renderReport(report, ack) {
   }
 
   const viewer = el('div', { class: 'viewer-box' },
-    el('div', { class: 'viewer-head' }, el('span', { class: 'pill', text: 'Mikrobiologie' })));
+    el('div', { class: 'viewer-head' },
+      el('span', { class: 'pill', text: 'Mikrobiologie' }),
+      opts.onScope ? el('div', { class: 'scope', role: 'group', 'aria-label': 'Ansicht' }, SCOPES.map(([k, label]) =>
+        el('button', { type: 'button', class: k === scope ? 'active' : '', text: label, onclick: () => opts.onScope(k) }))) : null));
   root.append(viewer);
 
   if (report.order?.notes.length) viewer.append(remark(report.order.notes, null, true));
 
-  report.groups.forEach((grp, gi) => {
-    const key = `${report.header.controlId}|${grp.collectedRaw}`;
-    const seen = ack.has(key);
-    const details = el('details', { class: `grp grp-${grp.status === 'F' ? 'final' : 'interim'}`, open: gi === 0 ? '' : null },
-      el('summary', {},
-        `Entnahme ${grp.collected || '–'}${grp.specimenText ? ` Specimen:${grp.specimenText}` : ''}, ${grp.statusText} Ergebnisstatus`,
-        seen ? null : el('span', { class: 'unseen', text: ' (ungesichtete Ergebnisse)' })));
-    const ackBtn = el('button', {
-      class: seen ? 'small-btn' : 'secondary small-btn', type: 'button', text: seen ? 'gesichtet' : 'ungesichtet',
-      onclick: () => { if (seen) ack.delete(key); else ack.add(key); ack.onchange?.(); },
-    });
-    details.append(el('div', { class: 'grp-meta' },
-      el('span', {}, el('b', { text: 'Auftragsnr. ' }), grp.orderNo || '–'),
-      el('span', {}, el('b', { text: 'Befunddatum ' }), grp.resultTime || '–'),
-      el('span', {}, el('b', { text: 'Ergebnisstatus ' }), grp.statusText),
-      ackBtn));
-    details.append(...grp.obrs.map((o, i, all) => renderObr(o, i, all)).filter(Boolean));
-    viewer.append(details);
-  });
+  // Alle Entnahmen (aktuelle Nachricht + ggf. weitere), neueste zuerst
+  const entries = [
+    ...report.groups.map((grp) => ({ report, grp, current: true })),
+    ...(scope === 'message' ? [] : (opts.others || []).flatMap((o) => o.report.groups.map((grp) => ({ report: o.report, grp, title: o.title })))),
+  ];
+  if (scope !== 'message') entries.sort((x, y) => (y.grp.collectedRaw || '').localeCompare(x.grp.collectedRaw || ''));
+  let opened = false;
+  for (const e of entries) {
+    const open = e.current && !opened;
+    if (open) opened = true;
+    viewer.append(renderGroup(e.report, e.grp, ack, open, e.current ? null : e.title));
+  }
+  if (opts.loading) viewer.append(el('p', { class: 'muted small', text: 'Weitere Befunde werden geladen …' }));
 
   if (!report.groups.length) viewer.append(el('p', { class: 'muted', text: 'Keine Ergebnisse in der Nachricht.' }));
 

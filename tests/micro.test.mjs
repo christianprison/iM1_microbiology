@@ -105,3 +105,16 @@ test('Prüfregeln: CMT ohne ABG, MOI ohne IS, falsches OBR-24', () => {
   assert.ok(has(r, 'OBX-2', 'error'));
   assert.ok(r.issues.some((i) => i.field === 'OBR-31' && /CMT/.test(i.text)));
 });
+
+test('Fall- und Patientenzuordnung der Beispiele', () => {
+  const a = report('oru_blutkultur_antibiogramm.hl7');
+  const b = report('oru_blutkultur_endbefund.hl7');
+  const c = report('oru_urin_frueherer_fall.hl7');
+  assert.equal(a.patient.id, b.patient.id);
+  assert.equal(a.visit.caseId, b.visit.caseId);
+  assert.equal(a.patient.id, c.patient.id);
+  assert.notEqual(a.visit.caseId, c.visit.caseId);
+  assert.equal(b.groups[0].statusText, 'Final');
+  assert.ok(!b.issues.some((i) => i.level === 'error'));
+  assert.ok(!c.issues.some((i) => i.level === 'error'));
+});
