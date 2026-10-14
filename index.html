@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://*.supabase.co; base-uri 'none'; form-action 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Mikrobiologie-Befundsimulator</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script src="vendor/supabase-js-2.117.2.js"></script>
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <section id="login" class="login" hidden>
+    <div class="login-box">
+      <h1>Mikrobiologie-Befundsimulator</h1>
+      <p class="muted">Anmeldung nur für freigeschaltete E-Mail-Adressen.</p>
+      <form id="login-step-mail">
+        <label for="login-email">E-Mail-Adresse</label>
+        <input id="login-email" type="email" autocomplete="email" required maxlength="254">
+        <button id="login-send" type="submit">Anmeldelink anfordern</button>
+      </form>
+      <form id="login-step-code" hidden>
+        <label for="login-code">Code aus der E-Mail</label>
+        <input id="login-code" inputmode="numeric" autocomplete="one-time-code" required maxlength="10" pattern="[0-9 ]{6,10}">
+        <button type="submit">Anmelden</button>
+        <p class="muted small">Alternativ den Link in der E-Mail in diesem Browser öffnen.</p>
+        <button id="login-back" type="button" class="link">Andere Adresse verwenden</button>
+      </form>
+      <p id="login-info" class="info" role="status"></p>
+    </div>
+  </section>
+
+  <div id="app" hidden>
+    <header class="topbar">
+      <span class="brand">Mikrobiologie-Befundsimulator</span>
+      <span class="spacer"></span>
+      <span id="user-email" class="muted small"></span>
+      <button id="btn-logout" class="secondary">Abmelden</button>
+    </header>
+    <main class="layout">
+      <aside class="sidebar">
+        <button id="btn-new">Neue Nachricht</button>
+        <label class="filebtn secondary">HL7-Datei laden<input id="file" type="file" accept=".hl7,.txt,.er7,text/plain"></label>
+        <nav id="msg-list"></nav>
+      </aside>
+      <section class="editor">
+        <input id="title" placeholder="Titel" maxlength="200">
+        <textarea id="hl7" spellcheck="false" placeholder="MSH|^~\&amp;|..."></textarea>
+        <div class="row">
+          <button id="btn-save">Speichern</button>
+          <button id="btn-delete" class="danger" hidden>Löschen</button>
+        </div>
+      </section>
+      <section class="viewer">
+        <div class="tabs">
+          <button id="tab-report" class="tab active">Befundansicht</button>
+          <button id="tab-structure" class="tab">HL7-Struktur</button>
+        </div>
+        <div id="output"></div>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" hidden></div>
+</body>
+</html>

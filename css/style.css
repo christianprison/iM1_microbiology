@@ -1,0 +1,105 @@
+:root {
+  --bg: #f3f5f8; --panel: #fff; --text: #1d2733; --muted: #66727f; --line: #d8dee6;
+  --accent: #1f5f9e; --accent-2: #e8f0f9; --danger: #b3261e;
+  --s: #1e7d3a; --s-bg: #e3f4e8; --i: #8a6100; --i-bg: #fdf1d3; --r: #b3261e; --r-bg: #fbe3e1;
+  --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font: 14px/1.45 system-ui, "Segoe UI", Roboto, sans-serif;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); }
+[hidden] { display: none !important; }
+button, .filebtn {
+  font: inherit; border: 1px solid var(--accent); background: var(--accent); color: #fff;
+  padding: 6px 12px; border-radius: 4px; cursor: pointer; text-align: center;
+}
+button.secondary, .filebtn.secondary { background: #fff; color: var(--accent); }
+button.danger { background: #fff; color: var(--danger); border-color: var(--danger); }
+button.link { background: none; border: none; color: var(--accent); padding: 0; text-decoration: underline; }
+button:disabled { opacity: .5; cursor: wait; }
+input, textarea { font: inherit; border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; width: 100%; background: #fff; color: var(--text); }
+.muted { color: var(--muted); } .small { font-size: 12px; }
+
+/* Login */
+.login { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.login-box { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 28px; width: min(400px, 100%); }
+.login-box h1 { font-size: 20px; margin: 0 0 4px; }
+.login-box form { display: grid; gap: 8px; margin-top: 16px; }
+.info { min-height: 1.5em; color: var(--accent); }
+
+/* Layout */
+.topbar { display: flex; align-items: center; gap: 12px; padding: 8px 16px; background: var(--accent); color: #fff; }
+.topbar .muted { color: #d6e4f3; }
+.topbar .brand { font-weight: 600; }
+.spacer { flex: 1; }
+.layout { display: grid; grid-template-columns: 220px minmax(280px, 1fr) minmax(420px, 1.6fr); gap: 12px; padding: 12px; height: calc(100vh - 46px); }
+.sidebar, .editor, .viewer { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px; min-height: 0; }
+.sidebar { display: flex; flex-direction: column; gap: 8px; overflow: auto; }
+.filebtn input { display: none; }
+.group { font-weight: 600; font-size: 12px; text-transform: uppercase; color: var(--muted); margin-top: 10px; }
+.msg-item { background: none; color: var(--text); border: 1px solid transparent; text-align: left; padding: 4px 6px; }
+.msg-item:hover { background: var(--accent-2); }
+.msg-item.active { border-color: var(--accent); background: var(--accent-2); }
+.editor { display: flex; flex-direction: column; gap: 8px; }
+.editor textarea { flex: 1; font-family: var(--mono); font-size: 12px; white-space: pre; resize: none; }
+.row { display: flex; gap: 8px; flex-wrap: wrap; }
+.viewer { display: flex; flex-direction: column; overflow: hidden; }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 10px; }
+.tab { background: none; color: var(--muted); border: none; border-bottom: 2px solid transparent; border-radius: 0; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+#output { overflow: auto; flex: 1; }
+
+/* Befund */
+.card { border: 1px solid var(--line); border-radius: 6px; padding: 12px; margin-bottom: 10px; }
+.card h3 { margin: 0 0 8px; font-size: 14px; color: var(--accent); }
+.head-row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.pat-name { font-size: 17px; font-weight: 600; }
+.pat-meta { color: var(--muted); }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 16px; margin-top: 10px; }
+.kv .k { display: block; font-size: 11px; color: var(--muted); }
+.status { padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--accent-2); color: var(--accent); }
+.st-p, .st-a, .st-i { background: var(--i-bg); color: var(--i); }
+.st-f { background: var(--s-bg); color: var(--s); }
+.st-c { background: var(--r-bg); color: var(--r); }
+.findings th { text-align: left; font-weight: 500; color: var(--muted); padding: 2px 12px 2px 0; vertical-align: top; white-space: nowrap; }
+.isolates { margin: 0; padding-left: 22px; }
+.isolates li { margin: 4px 0; }
+.org { font-style: italic; font-weight: 600; }
+.qty { margin-left: 10px; color: var(--muted); }
+.note { color: var(--muted); font-size: 13px; margin: 2px 0; }
+.table-wrap { overflow-x: auto; }
+table.abx { border-collapse: collapse; min-width: 100%; }
+.abx th, .abx td { border: 1px solid var(--line); padding: 3px 8px; }
+.abx thead th { background: var(--bg); font-size: 12px; vertical-align: bottom; }
+.abx tbody th { text-align: left; font-weight: 500; white-space: nowrap; }
+.th-org { font-style: italic; font-weight: 400; max-width: 160px; }
+.abx td { text-align: center; white-space: nowrap; }
+.mic { margin-left: 6px; font-size: 11px; color: var(--muted); }
+.sir-s { background: var(--s-bg); color: var(--s); }
+.sir-i, .sir-sdd { background: var(--i-bg); color: var(--i); }
+.sir-r, .sir-ns { background: var(--r-bg); color: var(--r); }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.legend b { padding: 0 5px; border-radius: 3px; }
+.src[data-seg] { cursor: pointer; }
+.src[data-seg]:hover { outline: 1px dashed var(--accent); }
+.warn { background: var(--r-bg); color: var(--r); border-radius: 4px; padding: 8px 10px; margin-bottom: 10px; }
+.footer-meta { font-size: 11px; color: var(--muted); }
+
+/* Struktur */
+.structure { font-family: var(--mono); font-size: 12px; }
+.seg { white-space: pre-wrap; word-break: break-all; padding: 2px 4px; border-radius: 3px; }
+.seg.hl { background: #fff3b0; }
+.lno { display: inline-block; width: 2.5em; color: var(--muted); }
+.sname { font-weight: 700; color: var(--accent); }
+.sep { color: #a0a9b4; }
+.fld { cursor: pointer; }
+.fld:hover { background: var(--accent-2); }
+.pick { font-family: var(--mono); min-height: 1.4em; margin-bottom: 6px; color: var(--accent); }
+
+.toast { position: fixed; right: 16px; bottom: 16px; background: var(--text); color: #fff; padding: 8px 14px; border-radius: 4px; }
+
+@media (max-width: 1000px) {
+  .layout { grid-template-columns: 1fr; height: auto; }
+  .editor textarea { min-height: 200px; }
+  .viewer { overflow: visible; }
+}
