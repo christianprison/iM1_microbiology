@@ -1,14 +1,20 @@
 # Mikrobiologie-Befundsimulator
 
-Stellt per HL7 v2 (ORU^R01) übermittelte Mikrobiologiebefunde dar: Erreger, Keimzahl, Antibiogramm (S/I/R mit MHK), Kommentare. Die Ansicht „HL7-Struktur“ zeigt zu jedem Feld die Position (z. B. `OBX-5.2`). Ein Klick auf ein Befundelement springt zum Quellsegment.
+Stellt per HL7 v2.4 an iMedOne übermittelte Mikrobiologiebefunde so dar, wie sie im Mikrobiologie-Viewer erscheinen, und prüft Nachrichten gegen die **Schnittstellenbeschreibung HL7-IN Mikrobiologiebefunde, Version 1.2.5**.
 
+- **Befundansicht:** Gruppierung nach Entnahme (OBR-7), Statusbalken Final/Intermediate (OBR-25), Abschnitte je OBR (OBR-4.2), Erreger (OBR-31 = MOI, OBX Wertetyp IS), Antibiogramm nach Wirkstoffgruppe (OBR-31 = ABG, OBX-17), Kommentare (CMT, NTE), PDF-Dokumente (OBX Wertetyp ED), ORM-Auftragsstatus
+- **Prüfung:** Pflichtfelder, feste Werte, Längen und Strukturregeln der Spezifikation, mit Verweis auf das jeweilige Kapitel
+- **HL7-Struktur:** Feldpositionen (z. B. `OBX-5.2`); ein Klick auf ein Befundelement springt zum Quellsegment
+
+Technik:
 - Frontend: statisch auf GitHub Pages, ohne Build-Schritt
 - Login und Daten: Supabase (E-Mail-Code bzw. Magic Link, nur freigeschaltete Adressen)
 - Die HL7-Auswertung läuft komplett im Browser.
 
-Unterstützte Antibiogramm-Strukturen:
-1. Kind-OBR je Isolat mit Verweis über OBR-26/OBR-29 auf das Erreger-OBX
-2. Resistenz-OBX im selben OBR, Zuordnung über OBX-4 (Sub-ID)
+Annahmen, die nicht in der Spezifikation stehen:
+- Befunddatum aus OBR-22, ersatzweise MSH-7
+- Ein OBX mit Wertetyp IS ohne OBR-31 = MOI wird nicht als Erreger angezeigt (abgeleitet aus Isolat 2 im Beispiel der Spezifikation)
+- Darstellung des Antibiogramms (Tabelle je Wirkstoffgruppe): Die Spezifikation enthält dafür keinen Screenshot
 
 ## Sicherheitskonzept
 

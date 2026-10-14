@@ -1,47 +1,86 @@
--- Synthetische Beispielnachrichten (keine echten Patientendaten).
+-- Synthetische Beispielnachrichten nach Schnittstellenbeschreibung HL7-IN Mikrobiologiebefunde 1.2.5.
+-- Keine echten Patientendaten. Quelle: samples/*.hl7
 -- Nach schema.sql im SQL Editor ausführen. Erneutes Ausführen ersetzt die Beispiele.
 delete from public.messages where shared and owner_id is null;
 
-insert into public.messages (owner_id, title, shared, hl7) values (null, 'Beispiel: Urinkultur, 2 Erreger (Kind-OBR)', true,
-  replace($hl7$MSH|^~\&|LIS_MIBI|LABOR|IMEDONE|KLINIKUM|20261012143000||ORU^R01^ORU_R01|MSG000123|P|2.5|||AL|NE||8859/1
-PID|1||4711001^^^KLINIKUM^PI||Mustermann^Max^^^^^L||19650412|M
-PV1|1|I|STA3^301^1^KLINIKUM||||1234^Arzt^Anna^^^Dr.||||||||||||90001234
-ORC|RE|A123456|M2610120045||CM
-OBR|1|A123456|M2610120045|URIKU^Urinkultur^L|||20261010080000|||||||20261010093000|URIN^Mittelstrahlurin^HL70487|1234^Arzt^Anna^^^Dr.||||||20261012142500|||F
-OBX|1|ST|MIKRO^Mikroskopie^L||Leukozyten massenhaft, Bakterien reichlich||||||F
-OBX|2|CWE|11475-1^Erreger^LN|1|ECOL^Escherichia coli^L||||||F
-OBX|3|ST|564-5^Keimzahl^LN|1|>10\S\5|KBE/ml|||||F
-OBX|4|CWE|11475-1^Erreger^LN|2|EFAE^Enterococcus faecalis^L||||||F
-OBX|5|ST|564-5^Keimzahl^LN|2|10\S\4|KBE/ml|||||F
-NTE|1|L|Mischkultur, Kontamination nicht auszuschließen.
-OBR|2|A123456|M2610120045-1|ABG^Antibiogramm^L|||20261010080000||||||||URIN^Mittelstrahlurin^HL70487|||||||20261012142500|||F|11475-1&Erreger&LN^1|||A123456&M2610120045
-OBX|1|SN|AMP^Ampicillin^L||>^8|mg/l||R|||F
-OBX|2|SN|AMS^Ampicillin/Sulbactam^L||^4|mg/l||S|||F
-OBX|3|SN|PIT^Piperacillin/Tazobactam^L||<=^4|mg/l||S|||F
-OBX|4|SN|CXM^Cefuroxim^L||^8|mg/l||I|||F
-OBX|5|SN|CTX^Cefotaxim^L||<=^1|mg/l||S|||F
-OBX|6|SN|CIP^Ciprofloxacin^L||>^1|mg/l||R|||F
-OBX|7|SN|SXT^Cotrimoxazol^L||<=^20|mg/l||S|||F
-OBX|8|SN|FOS^Fosfomycin^L||<=^16|mg/l||S|||F
-OBX|9|SN|NIT^Nitrofurantoin^L||<=^16|mg/l||S|||F
-OBX|10|SN|MEM^Meropenem^L||<=^0.25|mg/l||S|||F
-OBR|3|A123456|M2610120045-2|ABG^Antibiogramm^L|||20261010080000||||||||URIN^Mittelstrahlurin^HL70487|||||||20261012142500|||F|11475-1&Erreger&LN^2|||A123456&M2610120045
-OBX|1|SN|AMP^Ampicillin^L||<=^2|mg/l||S|||F
-OBX|2|SN|VAN^Vancomycin^L||^1|mg/l||S|||F
-OBX|3|SN|NIT^Nitrofurantoin^L||<=^32|mg/l||S|||F
-OBX|4|SN|LZD^Linezolid^L||^2|mg/l||S|||F
-NTE|1|L|Endbefund. Bei Rückfragen: Labor Mikrobiologie, Tel. 1234.$hl7$, E'\n', E'\r'));
+insert into public.messages (owner_id, title, shared, hl7) values (null, 'Urin – Beispiel aus Spezifikation 1.2.5', true,
+  replace($hl7$MSH|^~\&|AMPATH|AMPATH|iMedOne^BTS||20260711000400||ORU^R01|16741032-68238543-125808205-246010200|F|2.4|||AL|AL|ZAF|ASCII|EN
+PID|1||3307^^MIL^^PI||DE MUSTERMANN^MAX^^HR||19380314|M|||MUSTERSTR. 1^^MUSTERSTADT^^12345||0123456789^^^MAX.MUSTERMANN@EXAMPLE.ORG
+PV1|1|I|^^^^^^^^STATION 3|U||||12345^DR MUSTERARZT|||||||||||3688|||||||||||||||||||||||||20260709125700
+ORC|1|DEM-25|DEM-25||||^^^^^U||20260709125800|||12345^DR MUSTERARZT
+OBR|1|DEM-25|DEM-25|ORD_MUR^URINE ANALYSIS^PCL|||20260709125700|||||||20260709125800|UR&URINE RANDOM|||||||20260711000400||MB|F|ORD_MUR^URINE ANALYSIS^PCL
+OBX|1|ST|UR^Source^PCL|0|URINE RANDOM||||||F|||20260710235900
+OBR|2|DEM-25|DEM-25|MUMAC^URINE MACROSCOPY^PCL|||20260709125700|||||||20260709125800|UR&URINE RANDOM|||||||20260711000400||MB|F|ORD_MUR^URINE ANALYSIS^PCL
+OBX|1|ST|COL^COLOUR               :^PCL|2120|Slightly cloudy \T\ yellow||||||F|||20260710235900
+OBR|3|DEM-25|DEM-25|MUMICRIQ^URINE MICROSCOPY^PCL|||20260709125700|||||||20260709125800|UR&URINE RANDOM|||||||20260711000400||MB|F|ORD_MUR^URINE ANALYSIS^PCL
+OBX|1|ST|UET^LEUCOCYTES        /hpf:^PCL|2300|11-20||||||F|||20260710235900
+OBX|2|ST|URBS^RED BLOOD CELLS   /hpf:^PCL|2300|1-2||||||F|||20260710235900
+OBX|3|ST|UEPI^EPITHELIAL CELLS  /hpf:^PCL|2300|Scanty (1-5)||||||F|||20260710235900
+OBX|4|ST|YEAST^YEAST                :^PCL|2300|Normal||||||F|||20260710235900
+OBX|5|ST|SIL^CASTS                :^PCL|2300|Absent||||||F|||20260710235900
+OBX|6|ST|KRI^CRYSTALS             :^PCL|2300|Absent||||||F|||20260710235900
+OBR|4|DEM-25|DEM-25|MUCHEM^URINE BIOCHEMISTRY^PCL|||20260709125700|||||||20260709125800|UR&URINE RANDOM|||||||20260711000400||MB|F|ORD_MUR^URINE ANALYSIS^PCL
+OBX|1|ST|PH^pH        (4.6-8.0):^PCL|4000|5.5||||||F|||20260710235900
+OBX|2|ST|PROT^PROTEIN              :^PCL|4000|2 plus||||||F|||20260710235900
+OBX|3|ST|GLU^GLUCOSE              :^PCL|4000|Negative||||||F|||20260710235900
+OBX|4|ST|BLD^BLOOD                :^PCL|4000|1 plus||||||F|||20260710235900
+OBX|5|ST|KET^KETONES              :^PCL|4000|Negative||||||F|||20260710235900
+OBX|6|ST|BIL^BILIRUBIN            :^PCL|4000|Negative||||||F|||20260710235900
+OBX|7|ST|NIT^NITRITE              :^PCL|4000|Negative||||||F|||20260710235900
+OBX|8|ST|URO^UROBILINOGEN         :^PCL|4000|Normal||||||F|||20260710235900
+OBX|9|ST|LEST^LEUCOCYTE ESTERASE   :^PCL|4000|3 plus|||**|||F|||20260710235900
+OBX|10|ST|SG^S.G.  (1.005 - 1.030):^PCL|4000|1.020||||||F|||20260710235900
+NTE|1|L|IDENTIFICATION1 AND SENSITIVITY TO FOLLOW
+OBR|5|DEM-25|DEM-25|ZMUCUL1MOI^Urine Culture Isolate - 1^PCL|||20260709125700|||||||20260709125800|UR&URINE RANDOM|||||GNB^GRAM NEG. BACILLI||20260711000400||MB|F|ORD_MUR^URINE ANALYSIS^PCL|||||MOI
+OBX|1|IS|GNB^Bacteria Identified^PCL|1|GRAM NEG. BACILLI||||||F|||20260710235900
+OBX|2|ST|G^GROWTH               :^PCL|1|>= 100 X 1000 orgs/ml||||||F|||20260710235900
+NTE|1|L
+NTE|2|L
+NTE|3|L|IDENTIFICATION NEW
+NTE|4|L|IDENTIFICATION
+NTE|5|L|IDENTIFICATION AND SENSITIVITY TO FOLLOW
+NTE|6|L
+OBR|5|DEM-25|DEM-25|ZMUCUL1^Urine Culture Isolate - 2^PCL|||20260709125700|||||||20260709125800|UR&URINE RANDOM|||||GNB^GRAM NEG. BACILLI||20260711000400||MB|F|ORD_MUR^URINE ANALYSIS^PCL
+OBX|1|IS|GNNB^Bacteria Not Identified^PCL|1|GRAM NEG. BACILLI||||||F|||20260710235900
+OBX|2|ST|G^GROWTH               :^PCL|1|>= 1001 X 1002 orgs/ml||||||F|||20260710235900
+NTE|1|L |IDENTIFICATION By SM$hl7$, E'\n', E'\r'));
 
-insert into public.messages (owner_id, title, shared, hl7) values (null, 'Beispiel: Blutkultur MRSA, vorläufig (OBX Sub-ID)', true,
-  replace($hl7$MSH|^~\&|LIS_MIBI|LABOR|IMEDONE|KLINIKUM|20261013091500||ORU^R01|MSG000124|P|2.3
-PID|1||4711002^^^KLINIKUM^PI||Musterfrau^Erika||19781103|F
-PV1|1|I|ITS1^12^2^KLINIKUM||||||||||||||||90004567
-OBR|1|B998877|M2610130012|BK^Blutkultur aerob/anaerob^L|||20261011220000|||||||20261011230000|BLUT^Blutkultur^HL70070|||||||20261013091000|||P
-OBX|1|ST|GRAM^Gramfärbung^L|1|Grampositive Haufenkokken||||||P
-OBX|2|CWE|ORG^Erreger^L|1|SAUR^Staphylococcus aureus^L||||||P
-OBX|3|NM|OXA^Oxacillin^L|1|>2|mg/l||R|||P
-OBX|4|NM|VAN^Vancomycin^L|1|1|mg/l||S|||P
-OBX|5|NM|CLI^Clindamycin^L|1|0.25|mg/l||S|||P
-OBX|6|NM|SXT^Cotrimoxazol^L|1|10|mg/l||S|||P
-OBX|7|NM|LZD^Linezolid^L|1|2|mg/l||S|||P
-NTE|1|L|MRSA! Bitte Hygienefachpersonal informieren.\.br\Vorläufiger Befund, Endbefund folgt.$hl7$, E'\n', E'\r'));
+insert into public.messages (owner_id, title, shared, hl7) values (null, 'Blutkultur – Zwischenbefund mit Antibiogramm', true,
+  replace($hl7$MSH|^~\&|LABSYS|LABOR|iMedOne|KLINIKUM|20260714091000||ORU^R01|BK00000001|P|2.4|||AL|NE
+PID|1||4711002||MUSTERFRAU^ERIKA||19781103|F
+PV1|1|I|ITS1||||||||||||||||90004567
+ORC|RE|BK-4711|||IP
+OBR|1|BK-4711||BKMIK^Blood culture microscopy^LAB|||20260712221500|||||||20260712230000|BK&BLOOD CULTURE^^^VEN&Venous blood|||||||20260714091000||MB|I
+OBX|1|ST|GRAM^Gram stain^LAB|1|Gram negative rods||||||I|||20260712221500
+OBX|2|ST|TTP^Time to positivity^LAB|1|14|h|||||I|||20260712221500
+OBR|2|BK-4711||BKISO1^Blood Culture Isolate - 1^LAB|||20260712221500|||||||20260712230000|BK&BLOOD CULTURE^^^VEN&Venous blood|||||||20260714091000||MB|I||||||MOI
+OBX|1|IS|ORG^Microorganism identified^LAB|1|Escherichia coli||||||I|||20260712221500
+OBX|2|ST|BOT^Bottles positive^LAB|1|2 of 2||||||I|||20260712221500
+NTE|1|L|Final identification by MALDI-TOF.
+OBR|3|BK-4711||BKABG1^Antibiogram Escherichia coli^LAB|||20260712221500|||||||20260712230000|BK&BLOOD CULTURE^^^VEN&Venous blood|||||||20260714091000||MB|I||||||ABG
+OBX|1|ST|AMP^Ampicillin^LAB|1|>8|mg/l||R|||I|||20260712221500|||Penicillins
+OBX|2|ST|AMS^Ampicillin/Sulbactam^LAB|1|4|mg/l||S|||I|||20260712221500|||Penicillins
+OBX|3|ST|PIT^Piperacillin/Tazobactam^LAB|1|<=4|mg/l||S|||I|||20260712221500|||Penicillins
+OBX|4|ST|CXM^Cefuroxime^LAB|1|8|mg/l||I|||I|||20260712221500|||Cephalosporins
+OBX|5|ST|CTX^Cefotaxime^LAB|1|<=1|mg/l||S|||I|||20260712221500|||Cephalosporins
+OBX|6|ST|MEM^Meropenem^LAB|1|<=0.25|mg/l||S|||I|||20260712221500|||Carbapenems
+OBX|7|ST|CIP^Ciprofloxacin^LAB|1|>1|mg/l||R|||I|||20260712221500|||Fluoroquinolones
+OBX|8|ST|SXT^Cotrimoxazole^LAB|1|<=20|mg/l||S|||I|||20260712221500
+OBR|4|BK-4711||BKCMT1^Comment antibiogram^LAB|||20260712221500|||||||20260712230000|BK&BLOOD CULTURE^^^VEN&Venous blood|||||||20260714091000||MB|I||||||CMT
+NTE|1|L|EUCAST clinical breakpoints v15.0.
+NTE|2|L|Further antibiotics on request.$hl7$, E'\n', E'\r'));
+
+insert into public.messages (owner_id, title, shared, hl7) values (null, 'Wundabstrich – Endbefund mit PDF-Dokument', true,
+  replace($hl7$MSH|^~\&|LABSYS|LABOR|iMedOne|KLINIKUM|20260715101500||ORU^R01|DOC0000001|P|2.4|||AL|NE
+PID|1||4711003||MUSTERMANN^ERIK||19900101|M
+PV1|1|O|||||||||||||||||90007890
+ORC|RE|WA-1001
+OBR|1|WA-1001||WABS^Wound swab^LAB|||20260713083000||||||||WS&Wound swab^^^TIS&Tissue|||||||20260715101500||MB|F
+OBX|1|ED|DOC-1001-1^Microbiology report (PDF)||^Application^PDF^Base64^JVBERi0xLjQKMSAwIG9iago8PCAvVHlwZSAvQ2F0YWxvZyAvUGFnZXMgMiAwIFIgPj4KZW5kb2JqCjIgMCBvYmoKPDwgL1R5cGUgL1BhZ2VzIC9LaWRzIFszIDAgUl0gL0NvdW50IDEgPj4KZW5kb2JqCjMgMCBvYmoKPDwgL1R5cGUgL1BhZ2UgL1BhcmVudCAyIDAgUiAvTWVkaWFCb3ggWzAgMCA1OTUgODQyXSAvQ29udGVudHMgNCAwIFIgL1Jlc291cmNlcyA8PCAvRm9udCA8PCAvRjEgNSAwIFIgPj4gPj4gPj4KZW5kb2JqCjQgMCBvYmoKPDwgL0xlbmd0aCA4NCA+PgpzdHJlYW0KQlQgL0YxIDE2IFRmIDYwIDc4MCBUZCAoTWlrcm9iaW9sb2dpc2NoZXIgQmVmdW5kIC0gVGVzdGRva3VtZW50IChzeW50aGV0aXNjaCkpIFRqIEVUCmVuZHN0cmVhbQplbmRvYmoKNSAwIG9iago8PCAvVHlwZSAvRm9udCAvU3VidHlwZSAvVHlwZTEgL0Jhc2VGb250IC9IZWx2ZXRpY2EgPj4KZW5kb2JqCnhyZWYKMCA2CjAwMDAwMDAwMDAgNjU1MzUgZiAKMDAwMDAwMDAwOSAwMDAwMCBuIAowMDAwMDAwMDU4IDAwMDAwIG4gCjAwMDAwMDAxMTUgMDAwMDAgbiAKMDAwMDAwMDI0MSAwMDAwMCBuIAowMDAwMDAwMzc1IDAwMDAwIG4gCnRyYWlsZXIKPDwgL1NpemUgNiAvUm9vdCAxIDAgUiA+PgpzdGFydHhyZWYKNDQ1CiUlRU9GCg==||||||F|||20260715101500
+OBX|2|ST|CULT^Culture^LAB||No growth after 48 h||||||F|||20260713083000$hl7$, E'\n', E'\r'));
+
+insert into public.messages (owner_id, title, shared, hl7) values (null, 'ORM – Auftrag abgelehnt', true,
+  replace($hl7$MSH|^~\&|LABSYS|LABOR|iMedOne|KLINIKUM|20260715120000||ORM^O01|ORM0000001|P|2.4|||AL|NE
+PID|1||4711004||MUSTERFRAU^ANNA||19850505|F
+PV1|1|I|||||||||||||||||90001111
+ORC|SC|UR-2002|||RJ|||||||||||SMP^Sample container leaking$hl7$, E'\n', E'\r'));

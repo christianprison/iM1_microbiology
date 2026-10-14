@@ -5,53 +5,103 @@ import { parseHl7, get, unescapeHl7, Hl7Error } from '../js/hl7.js';
 import { buildReport } from '../js/micro.js';
 
 const load = (name) => readFileSync(new URL(`../samples/${name}`, import.meta.url), 'utf8');
+const report = (name) => buildReport(parseHl7(load(name)));
+const has = (r, field, level) => r.issues.some((i) => i.field === field && (!level || i.level === level));
 
-test('Parser: MSH-Felder und Escape-Sequenzen', () => {
-  const msg = parseHl7(load('urinkultur_kind-obr.hl7'));
+test('Parser: MSH-Felder, Subkomponenten und Escape-Sequenzen', () => {
+  const msg = parseHl7(load('oru_urin_spezifikationsbeispiel.hl7'));
   const msh = msg.segments[0];
   assert.equal(get(msh, msg.enc, 1), '|');
   assert.equal(get(msh, msg.enc, 2), '^~\\&');
   assert.equal(get(msh, msg.enc, 9, 2), 'R01');
-  assert.equal(unescapeHl7('a\\F\\b\\.br\\c\\X41\\', msg.enc), 'a|b\nca'.replace('ca', 'cA'));
+  const obr = msg.segments.find((s) => s.name === 'OBR');
+  assert.equal(get(obr, msg.enc, 15, 1, 1, 2), 'URINE RANDOM');
+  assert.equal(unescapeHl7('a\\F\\b\\.br\\c\\T\\d', msg.enc), 'a|b\nc&d');
 });
 
-test('Parser: lehnt Nachricht ohne MSH ab', () => {
+test('Parser: lehnt Nachricht ohne MSH ab, akzeptiert LF und MLLP', () => {
   assert.throws(() => parseHl7('PID|1||123'), Hl7Error);
+  const msg = parseHl7('\x0b' + load('orm_status_abgelehnt.hl7').replace(/\r/g, '\n') + '\x1c');
+  assert.equal(msg.segments.at(-1).name, 'ORC');
 });
 
-test('Parser: akzeptiert LF-Zeilenenden und MLLP-Rahmen', () => {
-  const text = '\x0b' + load('blutkultur_sub-id.hl7').replace(/\r/g, '\n') + '\x1c';
-  const msg = parseHl7(text);
-  assert.equal(msg.segments[0].name, 'MSH');
-  assert.equal(msg.segments.at(-1).name, 'NTE');
+test('Spezifikationsbeispiel: Abschnitte, Isolate, Bemerkungen', () => {
+  const r = report('oru_urin_spezifikationsbeispiel.hl7');
+  assert.equal(r.groups.length, 1);
+  const [grp] = r.groups;
+  assert.equal(grp.collected, '09/07/26 12:57');
+  assert.equal(grp.specimenText, 'URINE RANDOM');
+  assert.equal(grp.statusText, 'Final');
+  assert.equal(grp.orderNo, 'DEM-25');
+  assert.deepEqual(r.obrs.map((o) => o.text), ['URINE ANALYSIS', 'URINE MACROSCOPY', 'URINE MICROSCOPY',
+    'URINE BIOCHEMISTRY', 'Urine Culture Isolate - 1', 'Urine Culture Isolate - 2']);
+  const colour = r.obrs[1].observations[0];
+  assert.equal(colour.value, 'Slightly cloudy & yellow');
+  const sg = r.obrs[3].observations.at(-1);
+  assert.equal(sg.notes[0], 'IDENTIFICATION1 AND SENSITIVITY TO FOLLOW');
+  const iso1 = r.obrs[4];
+  assert.equal(iso1.kind, 'MOI');
+  assert.equal(iso1.observations[0].type, 'IS');
+  assert.equal(iso1.observations[0].value, 'GRAM NEG. BACILLI');
+  assert.equal(iso1.observations[1].notes.length, 6);
+  assert.equal(r.obrs[5].kind, '');
 });
 
-test('Urinkultur: Kind-OBR-Antibiogramme werden den Erregern zugeordnet', () => {
-  const r = buildReport(parseHl7(load('urinkultur_kind-obr.hl7')));
-  assert.equal(r.patient.family, 'Mustermann');
-  assert.equal(r.orders[0].statusText, 'Endbefund');
-  assert.equal(r.orders[0].specimen, 'Mittelstrahlurin');
-  const [ecoli, efae] = r.micro.isolates;
-  assert.equal(ecoli.organism, 'Escherichia coli');
-  assert.equal(ecoli.quantity, '>10^5 KBE/ml');
-  assert.equal(ecoli.abx.length, 10);
-  assert.equal(ecoli.abx.find((a) => a.code === 'CIP').flag, 'R');
-  assert.equal(ecoli.abx.find((a) => a.code === 'PIT').mic, '<=4');
-  assert.equal(efae.organism, 'Enterococcus faecalis');
-  assert.equal(efae.abx.length, 4);
-  assert.equal(r.micro.antibiotics.length, 12);
-  assert.equal(r.micro.findings.length, 1);
-  assert.match(r.micro.findings[0].value, /Leukozyten/);
+test('Spezifikationsbeispiel: Prüfung meldet die Abweichungen des Beispiels', () => {
+  const r = report('oru_urin_spezifikationsbeispiel.hl7');
+  assert.ok(has(r, 'ORC-3', 'warning'));       // Filler Order Number muss leer sein
+  assert.ok(has(r, 'MSH-10', 'warning'));      // Control ID länger als 10
+  assert.ok(has(r, 'MSH-16', 'info'));         // AL statt NE
+  assert.ok(has(r, 'OBX-8', 'warning'));       // Flag außerhalb ABG
+  assert.ok(has(r, 'OBR-31', 'info'));         // IS ohne MOI
+  assert.ok(!r.issues.some((i) => i.level === 'error'), JSON.stringify(r.issues.filter((i) => i.level === 'error')));
 });
 
-test('Blutkultur: Antibiogramm über OBX-4 Sub-ID', () => {
-  const r = buildReport(parseHl7(load('blutkultur_sub-id.hl7')));
-  assert.equal(r.orders[0].statusText, 'Vorläufiger Befund');
-  assert.equal(r.micro.isolates.length, 1);
-  const [sau] = r.micro.isolates;
-  assert.equal(sau.organism, 'Staphylococcus aureus');
-  assert.equal(sau.abx.length, 5);
-  assert.equal(sau.abx[0].flag, 'R');
-  assert.match(sau.abx[0].mic, />2/);
-  assert.match(r.orders[0].observations.at(-1).notes[0], /informieren\.\nVorläufiger/);
+test('Blutkultur: Zwischenbefund, Antibiogramm mit Wirkstoffgruppen, CMT', () => {
+  const r = report('oru_blutkultur_antibiogramm.hl7');
+  assert.equal(r.groups[0].statusText, 'Intermediate');
+  assert.equal(r.groups[0].specimenText, 'BLOOD CULTURE');
+  const abg = r.obrs.find((o) => o.kind === 'ABG');
+  assert.equal(abg.text, 'Antibiogram Escherichia coli');
+  assert.equal(abg.observations.length, 8);
+  assert.equal(abg.observations[0].flag, 'R');
+  assert.equal(abg.observations[0].method, 'Penicillins');
+  const cmt = r.obrs.find((o) => o.kind === 'CMT');
+  assert.equal(cmt.notes.length, 2);
+  assert.ok(!r.issues.some((i) => i.level !== 'info'), JSON.stringify(r.issues));
+  assert.ok(has(r, 'OBX-17', 'info'));         // Cotrimoxazol ohne Wirkstoffgruppe
+});
+
+test('PDF-Dokument (ED) wird erkannt und geprüft', () => {
+  const r = report('oru_wundabstrich_pdf.hl7');
+  const [doc] = r.obrs[0].documents;
+  assert.equal(doc.document.title, 'Microbiology report (PDF)');
+  assert.equal(doc.document.subType, 'PDF');
+  assert.match(Buffer.from(doc.document.data, 'base64').toString('latin1'), /^%PDF-1\.4/);
+  assert.equal(r.obrs[0].observations.length, 1);
+  assert.deepEqual(r.issues, []);
+});
+
+test('ORM-Statusnachricht: Ablehnung mit Grund', () => {
+  const r = report('orm_status_abgelehnt.hl7');
+  assert.equal(r.type, 'ORM^O01');
+  assert.equal(r.order.status, 'RJ');
+  assert.equal(r.order.rejectReason, 'Sample container leaking');
+  assert.ok(!r.issues.some((i) => i.level === 'error'));
+});
+
+test('Prüfregeln: CMT ohne ABG, MOI ohne IS, falsches OBR-24', () => {
+  const msg = [
+    'MSH|^~\\&|LAB||iMedOne||20260101120000||ORU^R01|X1|P|2.4',
+    'PID|1||1',
+    'PV1|1|I||||||||||||||||||9',
+    'OBR|1|||^Test|||20260101100000|||||||||||||||||LAB|F||||||MOI',
+    'OBX|1|ST|A^A||x||||||F|||20260101100000',
+    'OBR|2|||C^Kommentar|||20260101100000|||||||||||||||||MB|F||||||CMT',
+  ].join('\r');
+  const r = buildReport(parseHl7(msg));
+  assert.ok(has(r, 'OBR-4.1', 'error'));
+  assert.ok(has(r, 'OBR-24', 'error'));
+  assert.ok(has(r, 'OBX-2', 'error'));
+  assert.ok(r.issues.some((i) => i.field === 'OBR-31' && /CMT/.test(i.text)));
 });

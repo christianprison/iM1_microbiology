@@ -37,7 +37,7 @@ input, textarea { font: inherit; border: 1px solid var(--line); border-radius: 4
 .sidebar { display: flex; flex-direction: column; gap: 8px; overflow: auto; }
 .filebtn input { display: none; }
 .group { font-weight: 600; font-size: 12px; text-transform: uppercase; color: var(--muted); margin-top: 10px; }
-.msg-item { background: none; color: var(--text); border: 1px solid transparent; text-align: left; padding: 4px 6px; }
+.msg-item { background: none; color: var(--text); border: 1px solid transparent; text-align: left; padding: 4px 6px; overflow-wrap: anywhere; }
 .msg-item:hover { background: var(--accent-2); }
 .msg-item.active { border-color: var(--accent); background: var(--accent-2); }
 .editor { display: flex; flex-direction: column; gap: 8px; }
@@ -49,41 +49,59 @@ input, textarea { font: inherit; border: 1px solid var(--line); border-radius: 4
 .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 #output { overflow: auto; flex: 1; }
 
-/* Befund */
-.card { border: 1px solid var(--line); border-radius: 6px; padding: 12px; margin-bottom: 10px; }
-.card h3 { margin: 0 0 8px; font-size: 14px; color: var(--accent); }
-.head-row { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-.pat-name { font-size: 17px; font-weight: 600; }
-.pat-meta { color: var(--muted); }
-.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 16px; margin-top: 10px; }
-.kv .k { display: block; font-size: 11px; color: var(--muted); }
-.status { padding: 2px 8px; border-radius: 10px; font-size: 12px; font-weight: 600; white-space: nowrap; background: var(--accent-2); color: var(--accent); }
-.st-p, .st-a, .st-i { background: var(--i-bg); color: var(--i); }
-.st-f { background: var(--s-bg); color: var(--s); }
-.st-c { background: var(--r-bg); color: var(--r); }
-.findings th { text-align: left; font-weight: 500; color: var(--muted); padding: 2px 12px 2px 0; vertical-align: top; white-space: nowrap; }
-.isolates { margin: 0; padding-left: 22px; }
-.isolates li { margin: 4px 0; }
-.org { font-style: italic; font-weight: 600; }
-.qty { margin-left: 10px; color: var(--muted); }
-.note { color: var(--muted); font-size: 13px; margin: 2px 0; }
+/* Befund (angelehnt an den iMedOne-Mikrobiologie-Viewer) */
+.patbar { background: #fff6c8; border: 1px solid #e6d98a; padding: 4px 10px; font-size: 13px; margin-bottom: 8px; border-radius: 3px; }
+.viewer-box { border: 1px solid var(--line); border-radius: 4px; padding: 8px; background: #fbfcfd; }
+.viewer-head { text-align: center; margin-bottom: 8px; }
+.pill { display: inline-block; background: #4a7fb5; color: #fff; font-size: 12px; padding: 2px 10px; border-radius: 4px; }
+details.grp { margin-bottom: 6px; border: 1px solid var(--line); border-radius: 3px; background: #fff; }
+details.grp > summary { cursor: pointer; padding: 4px 10px; color: #fff; font-size: 13px; font-weight: 500; }
+.grp-final > summary { background: #5cb85c; }
+.grp-interim > summary { background: #f0ad4e; }
+.unseen { font-weight: 400; }
+.grp-meta { display: flex; gap: 24px; align-items: center; flex-wrap: wrap; padding: 6px 10px; border-bottom: 1px solid var(--line); font-size: 13px; }
+.grp-meta button { margin-left: auto; }
+.small-btn { font-size: 12px; padding: 2px 10px; border-radius: 10px; }
+.obr { padding: 4px 10px 8px; }
+.obr-title { font-weight: 700; font-size: 13px; margin: 6px 0 2px; }
+.organism { font-weight: 700; font-size: 13px; padding: 2px 0 2px 8px; }
+.vrow { display: grid; grid-template-columns: minmax(180px, 45%) 16px 1fr; padding: 2px 8px; border-bottom: 1px solid #eef1f4; font-size: 13px; }
+.vlabel { color: #3c4752; }
+.vsep { color: var(--muted); }
+.flag { color: var(--r); font-weight: 700; }
+.remark { padding: 0 8px 4px; font-size: 13px; }
+.remark-text { color: #3c4752; padding: 2px 0; }
+.remark-toggle { background: none; border: none; color: var(--accent); padding: 0; font-size: 12px; }
+.cmt { font-size: 13px; padding: 2px 8px; color: #3c4752; }
 .table-wrap { overflow-x: auto; }
-table.abx { border-collapse: collapse; min-width: 100%; }
-.abx th, .abx td { border: 1px solid var(--line); padding: 3px 8px; }
-.abx thead th { background: var(--bg); font-size: 12px; vertical-align: bottom; }
-.abx tbody th { text-align: left; font-weight: 500; white-space: nowrap; }
-.th-org { font-style: italic; font-weight: 400; max-width: 160px; }
-.abx td { text-align: center; white-space: nowrap; }
-.mic { margin-left: 6px; font-size: 11px; color: var(--muted); }
+table.abx { border-collapse: collapse; width: 100%; font-size: 13px; }
+.abx th, .abx td { border-bottom: 1px solid #eef1f4; padding: 2px 8px; text-align: left; }
+.abx thead th { color: var(--muted); font-weight: 500; }
+.abx-group th { background: var(--bg); font-weight: 600; font-size: 12px; }
+.abx td.sir { font-weight: 700; text-align: center; width: 80px; }
+.abx td.mic { white-space: nowrap; }
 .sir-s { background: var(--s-bg); color: var(--s); }
-.sir-i, .sir-sdd { background: var(--i-bg); color: var(--i); }
-.sir-r, .sir-ns { background: var(--r-bg); color: var(--r); }
-.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 6px; }
-.legend b { padding: 0 5px; border-radius: 3px; }
+.sir-i { background: var(--i-bg); color: var(--i); }
+.sir-r { background: var(--r-bg); color: var(--r); }
+.orm { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 4px; padding: 8px; }
+.orm.st-rj { border-left-color: var(--r); }
+.orm.st-cm { border-left-color: var(--s); }
+.orm-title { font-weight: 700; margin-bottom: 4px; }
 .src[data-seg] { cursor: pointer; }
 .src[data-seg]:hover { outline: 1px dashed var(--accent); }
 .warn { background: var(--r-bg); color: var(--r); border-radius: 4px; padding: 8px 10px; margin-bottom: 10px; }
-.footer-meta { font-size: 11px; color: var(--muted); }
+.footer-meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+/* Prüfung */
+.issue-table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.issue-table th, .issue-table td { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: left; vertical-align: top; }
+.mono { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
+.badge { font-size: 11px; padding: 1px 6px; border-radius: 3px; white-space: nowrap; }
+.b-error { background: var(--r-bg); color: var(--r); }
+.b-warning { background: var(--i-bg); color: var(--i); }
+.b-info { background: var(--accent-2); color: var(--accent); }
+.ok { background: var(--s-bg); color: var(--s); padding: 8px 10px; border-radius: 4px; }
+.tab.has-errors { color: var(--r); }
 
 /* Struktur */
 .structure { font-family: var(--mono); font-size: 12px; }

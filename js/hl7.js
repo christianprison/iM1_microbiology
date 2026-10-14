@@ -113,3 +113,12 @@ export function formatTs(ts) {
   if (h) out += ` ${h}:${mi ?? '00'}`;
   return out;
 }
+
+// Darstellung wie in der iMedOne-Oberfläche: TT/MM/JJ HH:MM
+export function formatTsShort(ts) {
+  if (!ts) return '';
+  const m = /^\d{2}(\d{2})(\d{2})(\d{2})(\d{2})?(\d{2})?/.exec(ts.trim());
+  if (!m) return ts;
+  const [, yy, mo, d, h, mi] = m;
+  return `${d}/${mo}/${yy}${h ? ` ${h}:${mi ?? '00'}` : ''}`;
+}

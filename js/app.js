@@ -1,12 +1,15 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, IDLE_LOGOUT_MINUTES } from './config.js';
 import { parseHl7, Hl7Error } from './hl7.js';
-import { buildReport } from './micro.js';
-import { el, renderReport, renderStructure } from './render.js';
+import { buildReport, SPEC_VERSION } from './micro.js';
+import { el, renderReport, renderIssues, renderStructure } from './render.js';
 
 const $ = (id) => document.getElementById(id);
 const configured = !SUPABASE_URL.includes('DEIN-PROJEKT') && !SUPABASE_ANON_KEY.startsWith('DEIN-');
 
 const state = { user: null, messages: [], current: null, view: 'report', msg: null };
+// Gesichtet-Status nur lokal für die Sitzung (simuliert den Button im Viewer)
+const ack = new Set();
+ack.onchange = () => update();
 let sb = null;
 
 // ---------- Anmeldung ----------
@@ -178,10 +181,18 @@ function update() {
     state.msg = parseHl7(text);
   } catch (e) {
     out.append(el('div', { class: 'warn', text: e instanceof Hl7Error ? e.message : `Fehler: ${e.message}` }));
+    $('tab-issues').textContent = 'Prüfung';
     return;
   }
+  const report = buildReport(state.msg);
+  const errors = report.issues.filter((i) => i.level === 'error').length;
+  const warnings = report.issues.filter((i) => i.level === 'warning').length;
+  $('tab-issues').textContent = `Prüfung${errors || warnings ? ` (${errors} F / ${warnings} W)` : ' ✓'}`;
+  $('tab-issues').classList.toggle('has-errors', errors > 0);
   if (state.view === 'report') {
-    out.append(renderReport(buildReport(state.msg)));
+    out.append(renderReport(report, ack));
+  } else if (state.view === 'issues') {
+    out.append(renderIssues(report, SPEC_VERSION));
   } else {
     out.append(el('p', { class: 'muted small', text: 'Feld anklicken bzw. mit der Maus darauf zeigen, um die HL7-Position zu sehen.' }));
     out.append(el('div', { id: 'pick', class: 'pick' }));
@@ -194,7 +205,7 @@ function update() {
 // Klick auf ein Element der Befundansicht springt zum Quellsegment
 function onOutputClick(ev) {
   const src = ev.target.closest('.src[data-seg]');
-  if (!src || state.view !== 'report') return;
+  if (!src || state.view === 'structure' || ev.target.closest('button')) return;
   const seg = src.dataset.seg;
   setView('structure');
   const line = document.querySelector(`.seg[data-seg="${CSS.escape(seg)}"]`);
@@ -206,8 +217,7 @@ function onOutputClick(ev) {
 
 function setView(v) {
   state.view = v;
-  $('tab-report').classList.toggle('active', v === 'report');
-  $('tab-structure').classList.toggle('active', v === 'structure');
+  for (const t of ['report', 'issues', 'structure']) $(`tab-${t}`).classList.toggle('active', v === t);
   update();
 }
 
@@ -270,6 +280,7 @@ function init() {
   $('file').addEventListener('change', loadFile);
   $('hl7').addEventListener('input', debounce(update, 250));
   $('tab-report').addEventListener('click', () => setView('report'));
+  $('tab-issues').addEventListener('click', () => setView('issues'));
   $('tab-structure').addEventListener('click', () => setView('structure'));
   $('output').addEventListener('click', onOutputClick);
   for (const evName of ['click', 'keydown', 'mousemove', 'touchstart']) {

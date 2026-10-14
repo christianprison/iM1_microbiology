@@ -1,205 +1,288 @@
-// Überführt eine geparste ORU^R01-Nachricht in ein Mikrobiologie-Befundmodell.
-// Unterstützt zwei verbreitete Strukturen für Antibiogramme:
-//  a) Kind-OBR mit Verweis auf das Erreger-OBX (OBR-26 / OBR-29)
-//  b) Resistenz-OBX im selben OBR, Zuordnung zum Isolat über OBX-4 (Sub-ID)
+// Befundmodell und Konformitätsprüfung nach
+// „Schnittstellenbeschreibung HL7-IN Mikrobiologiebefunde“ (iMedOne, Version 1.2.5).
+// Abschnittsnummern in Kommentaren und Prüfmeldungen beziehen sich auf dieses Dokument.
 
-import { get, components, formatTs } from './hl7.js';
+import { get, formatTs, formatTsShort } from './hl7.js';
 
-const SIR = /^(S|I|R|SDD|NS|SSD|N|U|SE|IE|RE)$/i;
-const ORGANISM = /organism|erreger|keim\b|keimart|isolat|bakteri|pilz|hefe|11475-1|^ORG/i;
-const QUANTITY = /keimzahl|menge|quant|colony|kbe|cfu|564-5|19146-0/i;
+export const SPEC_VERSION = '1.2.5';
 
-const STATUS = {
-  P: 'Vorläufiger Befund', F: 'Endbefund', C: 'Korrigierter Befund', R: 'Ergebnis eingegangen',
-  I: 'In Bearbeitung', A: 'Teilbefund', X: 'Storniert', S: 'Geplant', O: 'Auftrag eingegangen',
-};
+const RESULT_STATUS = { F: 'Final', I: 'Intermediate', P: 'Intermediate' };
+const ORDER_STATUS = { SC: 'geplant', IP: 'in Bearbeitung', CM: 'abgeschlossen', RJ: 'abgelehnt' };
+const OBR_KINDS = ['MOI', 'ABG', 'CMT'];
 
-const INTERPRETATION = {
-  S: 'sensibel', I: 'sensibel bei erhöhter Exposition', R: 'resistent',
-  SDD: 'dosisabhängig sensibel', NS: 'nicht sensibel', N: 'kein Ergebnis', U: 'unbekannt',
-};
-
-export function interpretationText(code) {
-  return INTERPRETATION[(code || '').toUpperCase()] || code || '';
+export function interpretationText(flag) {
+  return { S: 'sensibel', I: 'sensibel bei erhöhter Exposition', R: 'resistent' }[(flag || '').toUpperCase()] || '';
 }
 
 export function buildReport(msg) {
   const { enc, segments } = msg;
-  const g = (seg, f, c, r) => get(seg, enc, f, c, r);
+  const g = (seg, f, c = 1, r = 1, s = 1) => get(seg, enc, f, c, r, s);
+  const issues = [];
+  const issue = (level, seg, field, text) => issues.push({ level, seg: seg?.index ?? null, field, text });
+
   const report = {
-    header: {}, patient: {}, visit: {}, orders: [], warnings: [],
+    type: '', header: {}, patient: {}, visit: {}, order: null, obrs: [], groups: [], issues,
   };
 
-  let order = null;
-  let lastTarget = null; // für NTE-Zuordnung
+  let orc = null;
+  let obr = null;
+  let obx = null;
+  let lastAbg = false;
 
   for (const seg of segments) {
     switch (seg.name) {
-      case 'MSH':
+      case 'MSH': {
+        report.type = [g(seg, 9, 1), g(seg, 9, 2)].filter(Boolean).join('^');
         report.header = {
-          sendingApp: g(seg, 3), sendingFacility: g(seg, 4),
-          receivingApp: g(seg, 5), receivingFacility: g(seg, 6),
-          time: formatTs(g(seg, 7)),
-          type: [g(seg, 9, 1), g(seg, 9, 2)].filter(Boolean).join('^'),
-          controlId: g(seg, 10), version: g(seg, 12),
+          sendingApp: g(seg, 3), sendingFacility: g(seg, 4), receivingApp: g(seg, 5),
+          timeRaw: g(seg, 7), time: formatTs(g(seg, 7)), controlId: g(seg, 10), version: g(seg, 12),
         };
-        if (report.header.type && !/^ORU/.test(report.header.type)) {
-          report.warnings.push(`Nachrichtentyp ${report.header.type} – erwartet wird ORU^R01.`);
-        }
-        break;
-      case 'PID':
-        report.patient = {
-          id: g(seg, 3), family: g(seg, 5, 1), given: g(seg, 5, 2),
-          birth: formatTs(g(seg, 7)).slice(0, 10), sex: g(seg, 8),
-        };
-        lastTarget = report.patient;
-        break;
-      case 'PV1':
-        report.visit = {
-          class: g(seg, 2), ward: g(seg, 3, 1), room: g(seg, 3, 2), bed: g(seg, 3, 3),
-          caseId: g(seg, 19), attending: [g(seg, 7, 3), g(seg, 7, 2)].filter(Boolean).join(' '),
-        };
-        break;
-      case 'OBR': {
-        const parentRef = components(seg, enc, 26);
-        order = {
-          segIndex: seg.index,
-          setId: g(seg, 1),
-          placer: g(seg, 2), filler: g(seg, 3),
-          code: g(seg, 4, 1), text: g(seg, 4, 2) || g(seg, 4, 1),
-          collected: formatTs(g(seg, 7)), received: formatTs(g(seg, 14)),
-          specimen: g(seg, 15, 2) || g(seg, 15, 1),
-          specimenSite: g(seg, 15, 4),
-          orderedBy: [g(seg, 16, 3), g(seg, 16, 2)].filter(Boolean).join(' '),
-          resultTime: formatTs(g(seg, 22)),
-          status: g(seg, 25), statusText: STATUS[g(seg, 25)] || g(seg, 25),
-          parentObs: parentRef[0] || '', parentSubId: parentRef[1] || '',
-          parentFiller: g(seg, 29, 2) || g(seg, 29, 1),
-          observations: [], notes: [],
-        };
-        report.orders.push(order);
-        lastTarget = order;
+        checkMsh(seg, g, issue, report.type);
         break;
       }
-      case 'SPM':
-        if (order) {
-          order.specimen = g(seg, 4, 2) || g(seg, 4, 1) || order.specimen;
-          order.specimenSite = g(seg, 8, 2) || g(seg, 8, 1) || order.specimenSite;
-          order.collected = formatTs(g(seg, 17)) || order.collected;
-          order.received = formatTs(g(seg, 18)) || order.received;
-        }
+      case 'PID':
+        report.patient = {
+          id: g(seg, 3), family: g(seg, 5, 1), given: g(seg, 5, 2), middle: g(seg, 5, 3),
+          prefix: g(seg, 5, 5), birth: formatTs(g(seg, 7)).slice(0, 10), sex: g(seg, 8),
+        };
+        req(seg, g(seg, 3), 'PID-3', 'Patientenkennung fehlt (1.1.2).', issue);
+        maxLen(seg, g(seg, 3), 20, 'PID-3', issue);
         break;
-      case 'OBX': {
-        if (!order) {
-          report.warnings.push(`OBX in Zeile ${seg.index + 1} ohne vorangehendes OBR.`);
-          break;
-        }
-        const type = g(seg, 2);
-        let value;
-        if (type === 'SN') {
-          value = [g(seg, 5, 1), g(seg, 5, 2), g(seg, 5, 3), g(seg, 5, 4)].join('');
-        } else if (type === 'CE' || type === 'CWE' || type === 'CNE') {
-          value = g(seg, 5, 2) || g(seg, 5, 1);
-        } else {
-          const reps = seg.fields[5]?.length || 0;
-          const parts = [];
-          for (let r = 1; r <= reps; r++) parts.push(g(seg, 5, 1, r));
-          value = parts.join('\n');
-        }
-        const obs = {
-          segIndex: seg.index,
-          setId: g(seg, 1), type,
-          code: g(seg, 3, 1), name: g(seg, 3, 2) || g(seg, 3, 1),
-          subId: g(seg, 4), value, valueCode: g(seg, 5, 1),
-          unit: g(seg, 6, 2) || g(seg, 6, 1), range: g(seg, 7),
-          flag: g(seg, 8), status: g(seg, 11), time: formatTs(g(seg, 14)),
+      case 'PV1':
+        report.visit = { caseId: g(seg, 19), ward: g(seg, 3, 1) };
+        req(seg, g(seg, 19), 'PV1-19', 'iMedOne-Fallnummer fehlt (1.1.3, Pflichtangabe).', issue);
+        maxLen(seg, g(seg, 19), 20, 'PV1-19', issue);
+        break;
+      case 'ORC': {
+        orc = {
+          seg, control: g(seg, 1), placer: g(seg, 2), filler: g(seg, 3),
+          status: g(seg, 5), statusText: ORDER_STATUS[g(seg, 5)] || g(seg, 5),
+          rejectReason: [g(seg, 16, 2), g(seg, 16, 1)].find(Boolean) || '',
           notes: [],
         };
-        order.observations.push(obs);
-        lastTarget = obs;
+        report.order = orc;
+        obr = null; obx = null;
+        checkOrc(seg, orc, issue, report.type);
+        break;
+      }
+      case 'OBR': {
+        const kind = g(seg, 31).toUpperCase();
+        obr = {
+          segIndex: seg.index, setId: g(seg, 1), placer: g(seg, 2),
+          code: g(seg, 4, 1), text: g(seg, 4, 2),
+          collectedRaw: g(seg, 7), receivedRaw: g(seg, 14),
+          specimen: {
+            sourceCode: g(seg, 15, 1, 1, 1), sourceText: g(seg, 15, 1, 1, 2),
+            typeCode: g(seg, 15, 4, 1, 1), typeText: g(seg, 15, 4, 1, 2),
+          },
+          resultRaw: g(seg, 22), section: g(seg, 24), status: g(seg, 25).toUpperCase(),
+          kind, notes: [], observations: [], documents: [],
+        };
+        report.obrs.push(obr);
+        obx = null;
+        checkObr(seg, obr, orc, g, issue, lastAbg);
+        if (kind === 'ABG') lastAbg = true;
+        break;
+      }
+      case 'OBX': {
+        if (!obr) { issue('error', seg, 'OBX', 'OBX ohne vorangehendes OBR (1.2.1).'); break; }
+        obx = readObx(seg, g, obr, issue);
+        if (obx.type === 'ED') obr.documents.push(obx);
+        else obr.observations.push(obx);
         break;
       }
       case 'NTE': {
-        const reps = seg.fields[3]?.length || 0;
-        const parts = [];
-        for (let r = 1; r <= reps; r++) parts.push(g(seg, 3, 1, r));
-        const text = parts.join('\n');
-        if (lastTarget?.notes) lastTarget.notes.push(text);
-        else (report.notes ||= []).push(text);
+        const text = readRepeated(seg, g, 3);
+        maxLen(seg, text, 4000, 'NTE-3', issue);
+        const target = obx || obr || orc;
+        if (target) target.notes.push(text);
+        else issue('warning', seg, 'NTE', 'NTE ohne Bezug zu ORC, OBR oder OBX.');
         break;
       }
+      default:
+        issue('info', seg, seg.name, `Segment ${seg.name} ist in der Schnittstelle nicht beschrieben und wird ignoriert.`);
     }
   }
 
-  report.micro = deriveMicro(report);
+  if (!segments.some((s) => s.name === 'PID')) issue('error', null, 'PID', 'PID-Segment fehlt.');
+  if (report.type === 'ORU^R01' && !report.obrs.length) issue('error', null, 'OBR', 'Keine OBR-Segmente in der Ergebnisnachricht.');
+
+  report.groups = buildGroups(report, issue);
+  issues.sort((a, b) => (a.seg ?? -1) - (b.seg ?? -1));
   return report;
 }
 
-function isolateKey(subId) {
-  return (subId || '').split(/[.\-]/)[0] || '';
+function readRepeated(seg, g, field) {
+  const reps = seg.fields[field]?.length || 0;
+  const parts = [];
+  for (let r = 1; r <= reps; r++) parts.push(g(seg, field, 1, r));
+  return parts.join('\n');
 }
 
-function deriveMicro(report) {
-  const isolates = new Map(); // key -> isolate
-  const findings = []; // sonstige Befunde (Mikroskopie, Kommentare, ...)
-  const getIso = (key) => {
-    if (!isolates.has(key)) {
-      isolates.set(key, { key, organism: '', organismCode: '', quantity: '', notes: [], segIndex: null, abx: [] });
-    }
-    return isolates.get(key);
+function readObx(seg, g, obr, issue) {
+  const type = g(seg, 2).toUpperCase();
+  const o = {
+    segIndex: seg.index, setId: g(seg, 1), type,
+    code: g(seg, 3, 1), name: g(seg, 3, 2), subId: g(seg, 4),
+    value: '', unit: g(seg, 6, 2) || g(seg, 6, 1), range: g(seg, 7), flag: g(seg, 8).toUpperCase(),
+    status: g(seg, 11).toUpperCase(), timeRaw: g(seg, 14), method: g(seg, 17, 1), notes: [],
   };
+  const at = (f) => `OBX-${f}`;
 
-  // Erreger-OBX, auf die Kind-OBRs verweisen können
-  const orgByRef = new Map();
+  if (type === 'ED') {
+    // 1.2.6 Dokumenteninhalt
+    o.document = {
+      id: o.code, title: o.name, dataType: g(seg, 5, 2), subType: g(seg, 5, 3),
+      encoding: g(seg, 5, 4), data: seg.fields[5]?.[0]?.[4]?.[0] ?? '',
+    };
+    req(seg, o.name, 'OBX-3.2', 'Dokumententitel fehlt (1.2.6).', issue);
+    if (!o.code) issue('warning', seg, 'OBX-3.1', 'Dokumenten-ID fehlt – laut 1.2.6 verpflichtend, dient der Versionierung.');
+    maxLen(seg, o.code, 20, 'OBX-3.1', issue);
+    fixed(seg, o.document.dataType, 'Application', 'OBX-5.2', issue);
+    fixed(seg, o.document.subType, 'PDF', 'OBX-5.3', issue);
+    fixed(seg, o.document.encoding, 'Base64', 'OBX-5.4', issue);
+    const data = o.document.data.replace(/\s/g, '');
+    if (!data) issue('error', seg, 'OBX-5.5', 'Base64-Dokumenteninhalt fehlt.');
+    else if (!/^[A-Za-z0-9+/]*={0,2}$/.test(data)) issue('error', seg, 'OBX-5.5', 'Dokumenteninhalt ist kein gültiges Base64.');
+    else if (data.length * 0.75 >= 1024 * 1024) issue('error', seg, 'OBX-5.5', 'Dokument ist größer als 1 MB.');
+    if (obr.observations.length || obr.documents.length) {
+      issue('warning', seg, 'OBX-2', 'Das Dokument-OBX (ED) wird laut 1.2.1/1.2.6 als erstes OBX der Gruppe erwartet.');
+    }
+    req(seg, o.timeRaw, 'OBX-14', 'Dokumentendatum fehlt (1.2.6).', issue);
+    return o;
+  }
 
-  for (const order of report.orders) {
-    const isChild = !!(order.parentObs || order.parentFiller);
-    for (const obs of order.observations) {
-      const flag = (obs.flag || '').toUpperCase();
-      const looksSusc = SIR.test(flag) && obs.type !== 'CE' && obs.type !== 'CWE'
-        || (isChild && SIR.test(flag));
-      const looksOrg = !looksSusc && (obs.type === 'CE' || obs.type === 'CWE' || obs.type === 'ST')
-        && ORGANISM.test(`${obs.code} ${obs.name}`);
+  if (type === 'SN') o.value = [g(seg, 5, 1), g(seg, 5, 2), g(seg, 5, 3), g(seg, 5, 4)].join('');
+  else if (type === 'CE' || type === 'CWE') o.value = g(seg, 5, 2) || g(seg, 5, 1);
+  else o.value = readRepeated(seg, g, 5);
 
-      if (looksOrg) {
-        const key = isolateKey(obs.subId) || String(isolates.size + 1);
-        const iso = getIso(key);
-        iso.organism = obs.value;
-        iso.organismCode = obs.valueCode;
-        iso.segIndex = obs.segIndex;
-        iso.notes.push(...obs.notes);
-        orgByRef.set(`${obs.code}|${obs.subId}`, key);
-        orgByRef.set(`|${obs.subId}`, key);
-      } else if (looksSusc) {
-        let key = '';
-        if (isChild && order.parentSubId) {
-          key = orgByRef.get(`${order.parentObs}|${order.parentSubId}`)
-            || orgByRef.get(`|${order.parentSubId}`) || isolateKey(order.parentSubId);
-        }
-        if (!key) key = isolateKey(obs.subId) || '1';
-        getIso(key).abx.push({
-          code: obs.code, name: obs.name, mic: obs.type === 'NM' || obs.type === 'SN' || obs.type === 'ST' ? obs.value : '',
-          unit: obs.unit, flag, segIndex: obs.segIndex, notes: obs.notes,
-        });
-      } else if (QUANTITY.test(`${obs.code} ${obs.name}`) && isolateKey(obs.subId)) {
-        getIso(isolateKey(obs.subId)).quantity = [obs.value, obs.unit].filter(Boolean).join(' ');
-      } else {
-        findings.push({ ...obs, orderText: order.text });
-      }
+  req(seg, type, at(2), 'Wertetyp fehlt.', issue);
+  req(seg, o.code, 'OBX-3.1', 'Eindeutiger Code fehlt (1.2.4).', issue);
+  maxLen(seg, o.code, 64, 'OBX-3.1', issue);
+  maxLen(seg, o.name, 2000, 'OBX-3.2', issue);
+  maxLen(seg, o.subId, 20, 'OBX-4', issue);
+  maxLen(seg, o.value, 254, 'OBX-5', issue);
+  maxLen(seg, g(seg, 6, 1), 16, 'OBX-6', issue);
+  maxLen(seg, o.range, 60, 'OBX-7', issue);
+  if (o.status && !['F', 'I', 'P'].includes(o.status)) {
+    issue('warning', seg, 'OBX-11', `Ergebnisstatus „${o.status}“ wird nicht unterstützt (F, I, P).`);
+  }
+  req(seg, o.timeRaw, 'OBX-14', 'Datum/Uhrzeit der Probenentnahme fehlt (1.2.4, Pflichtfeld).', issue);
+
+  if (type === 'IS') {
+    req(seg, o.value, 'OBX-5', 'Bei Wertetyp IS muss der Name des Mikroorganismus in OBX-5 stehen (1.2.4).', issue);
+    if (obr.kind !== 'MOI') {
+      issue('info', seg, 'OBR-31', 'OBX mit Wertetyp IS ohne OBR-31 = MOI – der Erregername wird nicht als Mikroorganismus dargestellt (vgl. Isolat 2 im Beispiel der Spezifikation).');
     }
   }
-
-  const list = [...isolates.values()].sort((a, b) =>
-    a.key.localeCompare(b.key, 'de', { numeric: true }));
-  list.forEach((iso, i) => { iso.number = i + 1; if (!iso.organism) iso.organism = `Isolat ${iso.key}`; });
-
-  // Antibiotika-Zeilen über alle Isolate (Reihenfolge des ersten Auftretens)
-  const abxNames = [];
-  const seen = new Set();
-  for (const iso of list) for (const a of iso.abx) {
-    const k = a.code || a.name;
-    if (!seen.has(k)) { seen.add(k); abxNames.push({ key: k, name: a.name }); }
+  if (obr.kind === 'MOI' && !obr.observations.length && type !== 'IS') {
+    issue('error', seg, 'OBX-2', 'Nach OBR-31 = MOI muss das erste OBX den Wertetyp IS haben (1.2.4).');
   }
+  if (obr.kind === 'ABG') {
+    if (!o.flag) issue('info', seg, 'OBX-8', 'Antibiotikum ohne Bewertung (S/I/R) in OBX-8.');
+    if (!o.method) issue('info', seg, 'OBX-17', 'Keine Wirkstoffgruppe angegeben – iMedOne setzt „OTHERS“.');
+  } else if (o.flag) {
+    issue('warning', seg, 'OBX-8', 'Abnormal Flags werden nur bei Antibiotika (OBR-31 = ABG) erwartet (1.2.4).');
+  }
+  return o;
+}
 
-  return { isolates: list, antibiotics: abxNames, findings };
+function checkMsh(seg, g, issue, type) {
+  if (seg.rawFields[1] !== '^~\\&') issue('error', seg, 'MSH-2', 'Kodierungszeichen müssen „^~\\&“ lauten (1.1.1).');
+  req(seg, g(seg, 3), 'MSH-3', 'Sendende Anwendung fehlt (1.1.1).', issue);
+  if (g(seg, 5) && g(seg, 5).toLowerCase() !== 'imedone') {
+    issue('warning', seg, 'MSH-5', `Empfangende Anwendung „${g(seg, 5)}“ – erwartet „iMedOne“ (1.1.1).`);
+  }
+  const ts = g(seg, 7);
+  if (!ts) issue('error', seg, 'MSH-7', 'Datum/Uhrzeit der Nachricht fehlt (1.1.1).');
+  else if (!/^\d{12}(\d{2})?/.test(ts)) issue('warning', seg, 'MSH-7', 'Format YYYYMMDDHHMMSS erwartet (1.1.1).');
+  if (!['ORU^R01', 'ORM^O01'].includes(type)) {
+    issue('error', seg, 'MSH-9', `Nachrichtentyp „${type || 'leer'}“ – unterstützt werden ORU^R01 (1.2) und ORM (1.3).`);
+  }
+  req(seg, g(seg, 10), 'MSH-10', 'Message Control ID fehlt (1.1.1).', issue);
+  maxLen(seg, g(seg, 10), 10, 'MSH-10', issue);
+  if (g(seg, 12) !== '2.4') issue('warning', seg, 'MSH-12', `Version „${g(seg, 12) || 'leer'}“ – erwartet 2.4 (1.1.1).`);
+  if (g(seg, 15) && g(seg, 15) !== 'AL') issue('info', seg, 'MSH-15', 'Fester Wert „AL“ erwartet (1.1.1).');
+  if (g(seg, 16) && g(seg, 16) !== 'NE') issue('info', seg, 'MSH-16', 'Fester Wert „NE“ erwartet (1.1.1).');
+}
+
+function checkOrc(seg, orc, issue, type) {
+  req(seg, orc.control, 'ORC-1', 'Order Control Code fehlt (1.2.2).', issue);
+  if (['NW', 'XO', 'CA'].includes(orc.control)) {
+    issue('warning', seg, 'ORC-1', `Order Control Code „${orc.control}“ wird derzeit nicht verwendet (1.2.2).`);
+  }
+  maxLen(seg, orc.placer, 20, 'ORC-2', issue);
+  if (orc.filler) issue('warning', seg, 'ORC-3', 'Filler Order Number wird nicht unterstützt und muss leer sein (1.2.2).');
+  if (type === 'ORM^O01') {
+    if (!orc.status) issue('error', seg, 'ORC-5', 'Auftragsstatus fehlt (1.3.2).');
+    else if (!ORDER_STATUS[orc.status]) issue('error', seg, 'ORC-5', `Auftragsstatus „${orc.status}“ unbekannt (SC, IP, CM, RJ).`);
+    if (orc.status === 'RJ' && !orc.rejectReason) issue('warning', seg, 'ORC-16', 'Bei RJ wird ein Ablehnungsgrund erwartet (1.3.2).');
+  }
+}
+
+function checkObr(seg, obr, orc, g, issue, hadAbg) {
+  maxLen(seg, obr.placer, 20, 'OBR-2', issue);
+  if (orc && orc.placer && obr.placer && orc.placer !== obr.placer) {
+    issue('warning', seg, 'OBR-2', `Auftragsnummer „${obr.placer}“ weicht von ORC-2 „${orc.placer}“ ab (1.2.3).`);
+  }
+  req(seg, obr.code, 'OBR-4.1', 'Testcode fehlt (1.2.3).', issue);
+  req(seg, obr.text, 'OBR-4.2', 'Bezeichnung zum Testcode fehlt (1.2.3).', issue);
+  maxLen(seg, obr.code, 250, 'OBR-4.1', issue);
+  if (!obr.collectedRaw) {
+    issue('warning', seg, 'OBR-7', 'Entnahmezeitpunkt fehlt (1.2.3, Pflichtfeld) – Rückfall auf OBX-14.');
+  }
+  if (obr.section !== 'MB') issue('error', seg, 'OBR-24', `Diagnostic Serv Sect ID „${obr.section || 'leer'}“ – fest „MB“ erwartet (1.2.3).`);
+  if (obr.status && !['F', 'I'].includes(obr.status)) {
+    issue('warning', seg, 'OBR-25', `Ergebnisstatus „${obr.status}“ wird nicht unterstützt (F, I).`);
+  }
+  if (obr.kind && !OBR_KINDS.includes(obr.kind)) {
+    issue('warning', seg, 'OBR-31', `Unbekannter Wert „${obr.kind}“ – erwartet MOI, ABG oder CMT (1.2.3).`);
+  }
+  if (obr.kind === 'CMT' && !hadAbg) {
+    issue('error', seg, 'OBR-31', 'OBR mit CMT ohne vorangehendes OBR mit ABG wird nicht akzeptiert (1.2.3).');
+  }
+}
+
+function buildGroups(report, issue) {
+  // OBR-7 dient zur Gruppierung in der Oberfläche; Rückfall: OBX-14 (1.2.3, 1.2.4)
+  const groups = new Map();
+  for (const obr of report.obrs) {
+    const fallback = obr.observations.find((o) => o.timeRaw)?.timeRaw || obr.documents.find((d) => d.timeRaw)?.timeRaw || '';
+    const ts = (obr.collectedRaw || fallback).slice(0, 12);
+    if (!groups.has(ts)) groups.set(ts, { collectedRaw: ts, obrs: [] });
+    groups.get(ts).obrs.push(obr);
+  }
+  return [...groups.values()].map((grp) => {
+    const specs = grp.obrs.map((o) => o.specimen).filter((s) => s.sourceCode || s.sourceText || s.typeText);
+    const distinct = new Set(specs.map((s) => `${s.sourceCode}|${s.typeCode}`));
+    if (distinct.size > 1) {
+      issue('warning', null, 'OBR-15', 'Mehrere unterschiedliche Proben in einer Entnahme – der Viewer zeigt nur die zuletzt eingegangene (1.2.3).');
+    }
+    const last = specs.at(-1) || {};
+    const statuses = grp.obrs.map((o) => o.status).filter(Boolean);
+    const status = statuses.length && statuses.every((s) => s === 'F') ? 'F' : statuses.length ? 'I' : '';
+    const first = grp.obrs[0];
+    return {
+      ...grp,
+      collected: formatTsShort(grp.collectedRaw),
+      specimenText: last.sourceText || last.sourceCode || last.typeText || '',
+      status, statusText: RESULT_STATUS[status] || 'unbekannt',
+      orderNo: first.placer || report.order?.placer || '',
+      resultTime: formatTsShort(grp.obrs.map((o) => o.resultRaw).find(Boolean) || report.header.timeRaw),
+    };
+  });
+}
+
+function req(seg, value, field, text, issue) {
+  if (!value) issue('error', seg, field, text);
+}
+
+function fixed(seg, value, expected, field, issue) {
+  if ((value || '').toLowerCase() !== expected.toLowerCase()) {
+    issue('error', seg, field, `„${value || 'leer'}“ – fest „${expected}“ erwartet (1.2.6).`);
+  }
+}
+
+function maxLen(seg, value, len, field, issue) {
+  if (value && value.length > len) issue('warning', seg, field, `Länge ${value.length} überschreitet maximal ${len} Zeichen.`);
 }
