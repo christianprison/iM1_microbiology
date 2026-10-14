@@ -94,6 +94,9 @@ export function buildReport(msg) {
       case 'NTE': {
         const text = readRepeated(seg, g, 3);
         maxLen(seg, text, 4000, 'NTE-3', issue);
+        if (/<\/?[a-z][a-z0-9]*\s*\/?>/i.test(text)) {
+          issue('info', seg, 'NTE-3', 'Text enthält HTML-Tags (z. B. <BR>) – diese werden wörtlich angezeigt. Zeilenumbruch in HL7: \\.br\\');
+        }
         const target = obx || obr || orc;
         if (target) target.notes.push(text);
         else issue('warning', seg, 'NTE', 'NTE ohne Bezug zu ORC, OBR oder OBX.');
@@ -157,6 +160,9 @@ function readObx(seg, g, obr, issue) {
   else if (type === 'CE' || type === 'CWE') o.value = g(seg, 5, 2) || g(seg, 5, 1);
   else o.value = readRepeated(seg, g, 5);
 
+  if (/<\/?[a-z][a-z0-9]*\s*\/?>/i.test(o.value)) {
+    issue('info', seg, 'OBX-5', 'Text enthält HTML-Tags (z. B. <BR>) – diese werden wörtlich angezeigt. Zeilenumbruch in HL7: \\.br\\');
+  }
   req(seg, type, at(2), 'Wertetyp fehlt.', issue);
   req(seg, o.code, 'OBX-3.1', 'Eindeutiger Code fehlt (1.2.4).', issue);
   maxLen(seg, o.code, 64, 'OBX-3.1', issue);

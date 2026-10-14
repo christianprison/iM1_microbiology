@@ -16,6 +16,7 @@ Festlegungen, die nicht in der Spezifikation stehen:
 - Befunddatum aus OBR-22 (bestätigt); fehlt OBR-22, zeigt der Simulator ersatzweise MSH-7 und gibt einen Hinweis aus
 - Ein OBX mit Wertetyp IS ohne OBR-31 = MOI wird nicht als Erreger angezeigt (abgeleitet aus Isolat 2 im Beispiel der Spezifikation)
 - Antibiogramm nach den Screenshots „Microbiology results viewer – NG form (Netcare)“: links die Überschrift des vorangehenden MOI-OBR, mittig OBR-4.2, Gruppen aus OBX-17, Wert als „S (MHK)“; Kommentare aus einem folgenden CMT-OBR über das ⓘ-Symbol
+- HTML-Tags wie `<BR>` in Texten werden wörtlich angezeigt (Annahme); die Prüfung weist darauf hin, Zeilenumbruch in HL7 ist `\.br\`
 - Probenangabe im Balken als „Specimen:Code-Text,Description:Code-Text“ (OBR-15.1 bzw. OBR-15.4)
 
 ## Sicherheitskonzept

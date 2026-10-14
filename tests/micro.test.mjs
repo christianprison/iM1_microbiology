@@ -119,3 +119,16 @@ test('Fall- und Patientenzuordnung der Beispiele', () => {
   assert.ok(!b.issues.some((i) => i.level === 'error'));
   assert.ok(!c.issues.some((i) => i.level === 'error'));
 });
+
+test('Hinweis bei HTML-Tags im Text', () => {
+  const msg = [
+    'MSH|^~\\&|LAB||iMedOne||20260101120000||ORU^R01|X1|P|2.4',
+    'PID|1||1||MUSTER^TEST',
+    'PV1|1|I||||||||||||||||||9',
+    'OBR|1|||C^Kommentar|||20260101100000|||||||||||||||20260101110000||MB|F',
+    'OBX|1|ST|C^COMMENT||Zeile 1<BR>Zeile 2||||||F|||20260101100000',
+  ].join('\r');
+  const r = buildReport(parseHl7(msg));
+  assert.equal(r.obrs[0].observations[0].value, 'Zeile 1<BR>Zeile 2');
+  assert.ok(r.issues.some((i) => i.field === 'OBX-5' && /<BR>/.test(i.text) && /\\\.br\\/.test(i.text)));
+});
