@@ -228,6 +228,9 @@ function checkObr(seg, obr, orc, g, issue, hadAbg) {
   req(seg, obr.code, 'OBR-4.1', 'Testcode fehlt (1.2.3).', issue);
   req(seg, obr.text, 'OBR-4.2', 'Bezeichnung zum Testcode fehlt (1.2.3).', issue);
   maxLen(seg, obr.code, 250, 'OBR-4.1', issue);
+  if (!obr.resultRaw) {
+    issue('info', seg, 'OBR-22', 'Kein Befundzeitpunkt – das Befunddatum im Viewer stammt aus OBR-22 (Simulator zeigt ersatzweise MSH-7).');
+  }
   if (!obr.collectedRaw) {
     issue('warning', seg, 'OBR-7', 'Entnahmezeitpunkt fehlt (1.2.3, Pflichtfeld) – Rückfall auf OBX-14.');
   }

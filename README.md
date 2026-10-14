@@ -11,8 +11,8 @@ Technik:
 - Login und Daten: Supabase (E-Mail-Code bzw. Magic Link, nur freigeschaltete Adressen)
 - Die HL7-Auswertung läuft komplett im Browser.
 
-Annahmen, die nicht in der Spezifikation stehen:
-- Befunddatum aus OBR-22, ersatzweise MSH-7
+Festlegungen, die nicht in der Spezifikation stehen:
+- Befunddatum aus OBR-22 (bestätigt); fehlt OBR-22, zeigt der Simulator ersatzweise MSH-7 und gibt einen Hinweis aus
 - Ein OBX mit Wertetyp IS ohne OBR-31 = MOI wird nicht als Erreger angezeigt (abgeleitet aus Isolat 2 im Beispiel der Spezifikation)
 - Darstellung des Antibiogramms (Tabelle je Wirkstoffgruppe): Die Spezifikation enthält dafür keinen Screenshot
 
