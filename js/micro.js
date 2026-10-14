@@ -149,6 +149,7 @@ function readObx(seg, g, obr, issue) {
       issue('warning', seg, 'OBX-2', 'Das Dokument-OBX (ED) wird laut 1.2.1/1.2.6 als erstes OBX der Gruppe erwartet.');
     }
     req(seg, o.timeRaw, 'OBX-14', 'Dokumentendatum fehlt (1.2.6).', issue);
+    issue('info', seg, 'OBX-2', `PDF-Dokument „${o.name || o.code}“ wird in iMedOne im DMS abgelegt und nicht im Mikrobiologie-Viewer angezeigt.`);
     return o;
   }
 

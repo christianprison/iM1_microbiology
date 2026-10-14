@@ -79,7 +79,8 @@ test('PDF-Dokument (ED) wird erkannt und geprüft', () => {
   assert.equal(doc.document.subType, 'PDF');
   assert.match(Buffer.from(doc.document.data, 'base64').toString('latin1'), /^%PDF-1\.4/);
   assert.equal(r.obrs[0].observations.length, 1);
-  assert.deepEqual(r.issues, []);
+  assert.deepEqual(r.issues.map((i) => i.level), ['info']);
+  assert.match(r.issues[0].text, /DMS/);
 });
 
 test('ORM-Statusnachricht: Ablehnung mit Grund', () => {

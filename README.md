@@ -2,7 +2,7 @@
 
 Stellt per HL7 v2.4 an iMedOne übermittelte Mikrobiologiebefunde so dar, wie sie im Mikrobiologie-Viewer erscheinen, und prüft Nachrichten gegen die **Schnittstellenbeschreibung HL7-IN Mikrobiologiebefunde, Version 1.2.5**.
 
-- **Befundansicht:** Gruppierung nach Entnahme (OBR-7), Statusbalken Final/Intermediate (OBR-25), Abschnitte je OBR (OBR-4.2), Erreger (OBR-31 = MOI, OBX Wertetyp IS), Antibiogramm nach Wirkstoffgruppe (OBR-31 = ABG, OBX-17), Kommentare (CMT, NTE), PDF-Dokumente (OBX Wertetyp ED), ORM-Auftragsstatus
+- **Befundansicht:** Gruppierung nach Entnahme (OBR-7), Statusbalken Final/Intermediate (OBR-25), Abschnitte je OBR (OBR-4.2), Erreger (OBR-31 = MOI, OBX Wertetyp IS), Antibiogramm nach Wirkstoffgruppe (OBR-31 = ABG, OBX-17), Kommentare (CMT, NTE), ORM-Auftragsstatus. PDF-Dokumente (OBX Wertetyp ED) landen in iMedOne im DMS und werden daher nicht angezeigt, nur in der Prüfung bewertet
 - **Ansichten:** Nachricht (nur die aktuelle), Fall (Case View/Kompakt: alle Befunde mit gleicher Fallnummer PV1-19), Patient (alle Befunde mit gleicher Patientennummer PID-3 über alle Fälle); Quelle sind die Beispiele und die Nachrichten der laufenden Sitzung
 - **Prüfung:** Pflichtfelder, feste Werte, Längen und Strukturregeln der Spezifikation, mit Verweis auf das jeweilige Kapitel
 - **HL7-Struktur:** Feldpositionen (z. B. `OBX-5.2`); ein Klick auf ein Befundelement springt zum Quellsegment

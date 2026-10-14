@@ -60,31 +60,6 @@ function row(label, value, segIndex, extra) {
     el('span', { class: 'vvalue' }, value, extra));
 }
 
-function documentRow(doc) {
-  const d = doc.document;
-  const btn = el('button', {
-    class: 'secondary small-btn', type: 'button', text: 'PDF herunterladen',
-    onclick: () => {
-      try {
-        const bin = atob(d.data.replace(/\s/g, ''));
-        const bytes = Uint8Array.from(bin, (c) => c.charCodeAt(0));
-        const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
-        const a = el('a', { href: url, download: `${(d.title || 'Dokument').replace(/[^\w.\- ]+/g, '_')}.pdf` });
-        document.body.append(a);
-        a.click();
-        a.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 10000);
-      } catch {
-        alert('Dokumenteninhalt ist kein gültiges Base64.');
-      }
-    },
-  });
-  return el('div', { class: 'vrow doc src', dataset: segData(doc.segIndex) },
-    el('span', { class: 'vlabel', text: `Dokument: ${d.title || '(ohne Titel)'}` }),
-    el('span', { class: 'vsep', text: '' }),
-    el('span', { class: 'vvalue' }, btn));
-}
-
 function valueText(o) {
   return [o.value, o.unit].filter(Boolean).join(' ');
 }
@@ -99,7 +74,6 @@ function renderObr(obr, idx, obrs) {
   const sec = el('div', { class: 'obr' },
     el('div', { class: 'obr-title src', dataset: segData(obr.segIndex), text: title }));
   if (obr.kind === 'CMT') return null; // erscheint als ⓘ-Bemerkung am Antibiogramm
-  sec.append(...obr.documents.map(documentRow));
   if (obr.notes.length) sec.append(remark(obr.notes, obr.segIndex));
 
   if (obr.kind === 'ABG') {
