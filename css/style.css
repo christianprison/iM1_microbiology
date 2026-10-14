@@ -97,6 +97,10 @@ details.grp > summary { cursor: pointer; padding: 4px 10px; color: #fff; font-si
 .warn { background: var(--r-bg); color: var(--r); border-radius: 4px; padding: 8px 10px; margin-bottom: 10px; }
 .footer-meta { font-size: 11px; color: var(--muted); margin-top: 6px; }
 
+.privacy-note { background: var(--i-bg); color: #5c4300; border: 1px solid #e8cf8a; border-radius: 4px; padding: 8px 10px; font-size: 13px; }
+.privacy-note ul { margin: 4px 0 4px 18px; padding: 0; }
+.editor p.small { margin: 0; }
+
 /* Prüfung */
 .issue-table { border-collapse: collapse; width: 100%; font-size: 13px; }
 .issue-table th, .issue-table td { border-bottom: 1px solid var(--line); padding: 4px 6px; text-align: left; vertical-align: top; }

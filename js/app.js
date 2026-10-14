@@ -2,6 +2,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, IDLE_LOGOUT_MINUTES } from './config.j
 import { parseHl7, Hl7Error } from './hl7.js';
 import { buildReport, SPEC_VERSION } from './micro.js';
 import { el, renderReport, renderIssues, renderStructure } from './render.js';
+import { pseudonymize, browserSalt } from './privacy.js';
 
 const $ = (id) => document.getElementById(id);
 const configured = !SUPABASE_URL.includes('DEIN-PROJEKT') && !SUPABASE_ANON_KEY.startsWith('DEIN-');
@@ -63,6 +64,39 @@ let idleTimer = null;
 function resetIdle() {
   clearTimeout(idleTimer);
   if (state.user) idleTimer = setTimeout(logout, IDLE_LOGOUT_MINUTES * 60 * 1000);
+}
+
+// ---------- Datenschutz ----------
+
+// Prüft auf wahrscheinlich echte Personendaten und pseudonymisiert sie; informiert den Nutzer.
+function applyPrivacy(text) {
+  let res;
+  try {
+    res = pseudonymize(text, browserSalt());
+  } catch {
+    return text;
+  }
+  const note = $('privacy-note');
+  if (!res.changed) return text;
+  note.replaceChildren(
+    el('b', { text: 'Die Nachricht enthielt vermutlich echte Personendaten und wurde pseudonymisiert:' }),
+    el('ul', {}, res.changes.map((c) => el('li', { text: c }))),
+    el('div', { class: 'small', text: 'Freitexte bitte zusätzlich prüfen – dort können weitere Personendaten stehen.' }),
+    el('button', { type: 'button', class: 'link', text: 'Hinweis schließen', onclick: () => { note.hidden = true; } }));
+  note.hidden = false;
+  return res.text;
+}
+
+function onPaste() {
+  // Einfügen abwarten, dann den gesamten Inhalt prüfen
+  setTimeout(() => {
+    const ta = $('hl7');
+    const checked = applyPrivacy(ta.value);
+    if (checked !== ta.value) {
+      ta.value = checked;
+      update();
+    }
+  }, 0);
 }
 
 // ---------- Nachrichtenverwaltung ----------
@@ -137,6 +171,7 @@ async function openMessage(id) {
   const { data, error } = await sb.from('messages').select('id,title,hl7,shared,owner_id').eq('id', id).single();
   if (error) { toast(`Öffnen fehlgeschlagen: ${error.message}`); return; }
   state.current = data;
+  $('privacy-note').hidden = true;
   $('title').value = data.title;
   $('hl7').value = data.hl7;
   updateButtons();
@@ -146,6 +181,7 @@ async function openMessage(id) {
 
 function newMessage() {
   state.current = null;
+  $('privacy-note').hidden = true;
   $('title').value = '';
   $('hl7').value = '';
   updateButtons();
@@ -165,7 +201,11 @@ function updateButtons() {
 
 async function save() {
   const title = $('title').value.trim() || 'Ohne Titel';
-  const hl7 = $('hl7').value;
+  const hl7 = applyPrivacy($('hl7').value);
+  if (hl7 !== $('hl7').value) {
+    $('hl7').value = hl7;
+    update();
+  }
   let res;
   if (isOwn()) {
     res = await sb.from('messages').update({ title, hl7, updated_at: new Date().toISOString() })
@@ -196,7 +236,7 @@ function loadFile(ev) {
   reader.onload = () => {
     state.current = null;
     $('title').value = file.name.replace(/\.[^.]+$/, '');
-    $('hl7').value = String(reader.result);
+    $('hl7').value = applyPrivacy(String(reader.result));
     updateButtons();
     renderList();
     update();
@@ -322,6 +362,7 @@ function init() {
   $('btn-delete').addEventListener('click', remove);
   $('file').addEventListener('change', loadFile);
   $('hl7').addEventListener('input', debounce(update, 250));
+  $('hl7').addEventListener('paste', onPaste);
   $('tab-report').addEventListener('click', () => setView('report'));
   $('tab-issues').addEventListener('click', () => setView('issues'));
   $('tab-structure').addEventListener('click', () => setView('structure'));

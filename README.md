@@ -30,6 +30,18 @@ Festlegungen, die nicht in der Spezifikation stehen:
 
 **Wichtig:** Repository und GitHub-Pages-Seite sind öffentlich. Code und `samples/` sind für jeden einsehbar. Deshalb nur synthetische Daten verwenden, keine echten Patientendaten, und keine geheimen Schlüssel eintragen. Schützenswert ist nur, was in Supabase liegt.
 
+## Datenschutz: Pseudonymisierung
+
+Beim Einfügen, beim Laden einer Datei und vor dem Speichern prüft die App jede Nachricht (`js/privacy.js`). Enthält der Patientenname (PID-5) keinen Hinweis auf Test- oder Musterdaten (Muster, Test, Demo, Beispiel, Dummy, Sample, Anonym …), gilt die Nachricht als wahrscheinlich echt und wird pseudonymisiert:
+
+- PID-5 Name → `MUSTER^PATIENT <Code>`, PID-7 Geburtsdatum → 01.01. des Geburtsjahres
+- PID-3 Patientennummer und PV1-19 Fallnummer → stabile Pseudonyme (Fall-/Patientenansicht bleibt nutzbar)
+- Adresse, Telefon, Sozialversicherungs-/Konto- und weitere Kennungen in PID werden gelöscht, NK1 (Angehörige) entfernt
+- Namen von Mitarbeitenden (PV1, ORC, OBR, OBX) → `MUSTERARZT`
+- Vor- und Nachname des Patienten werden auch in OBX- und NTE-Freitexten ersetzt
+
+Der Nutzer erhält einen Hinweis mit allen Änderungen. Die Pseudonyme werden mit einem zufälligen Schlüssel gebildet, der nur im Browser des Nutzers liegt. Grenzen: Andere Personendaten in Freitexten (z. B. Namen von Angehörigen) werden nicht sicher erkannt.
+
 ## Einrichtung
 
 ### 1. Supabase

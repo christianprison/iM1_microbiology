@@ -47,11 +47,13 @@
       </aside>
       <section class="editor">
         <input id="title" placeholder="Titel" maxlength="200">
+        <div id="privacy-note" class="privacy-note" role="status" hidden></div>
         <textarea id="hl7" spellcheck="false" placeholder="MSH|^~\&amp;|..."></textarea>
         <div class="row">
           <button id="btn-save">Speichern</button>
           <button id="btn-delete" class="danger" hidden>Löschen</button>
         </div>
+        <p class="muted small">Bitte keine echten Patientendaten verwenden. Erkannte Personendaten (Name, Geburtsdatum, Adresse, Kennungen) werden beim Einfügen, Laden und Speichern automatisch pseudonymisiert.</p>
       </section>
       <section class="viewer">
         <div class="tabs">
