@@ -73,16 +73,17 @@ details.grp > summary { cursor: pointer; padding: 4px 10px; color: #fff; font-si
 .remark-text { color: #3c4752; padding: 2px 0; }
 .remark-toggle { background: none; border: none; color: var(--accent); padding: 0; font-size: 12px; }
 .cmt { font-size: 13px; padding: 2px 8px; color: #3c4752; }
-.table-wrap { overflow-x: auto; }
-table.abx { border-collapse: collapse; width: 100%; font-size: 13px; }
-.abx th, .abx td { border-bottom: 1px solid #eef1f4; padding: 2px 8px; text-align: left; }
-.abx thead th { color: var(--muted); font-weight: 500; }
-.abx-group th { background: var(--bg); font-weight: 600; font-size: 12px; }
-.abx td.sir { font-weight: 700; text-align: center; width: 80px; }
-.abx td.mic { white-space: nowrap; }
-.sir-s { background: var(--s-bg); color: var(--s); }
-.sir-i { background: var(--i-bg); color: var(--i); }
-.sir-r { background: var(--r-bg); color: var(--r); }
+.abg { font-size: 13px; }
+.abg-title { text-align: center; font-weight: 600; padding: 4px 8px; border-bottom: 1px solid #eef1f4; background: #f7f9fb; }
+.info-btn { background: none; border: none; color: var(--accent); padding: 0 0 0 6px; font-size: 14px; }
+.abg-group { font-weight: 700; padding: 4px 0 2px; }
+.abg-row { display: grid; grid-template-columns: minmax(180px, 45%) 1fr; padding: 2px 8px; border-bottom: 1px solid #eef1f4; }
+.abg-value { padding-left: 16px; }
+.remark-dialog { border: 1px solid var(--line); border-radius: 6px; padding: 0; max-width: min(640px, 92vw); }
+.remark-dialog::backdrop { background: rgba(0, 0, 0, .3); }
+.remark-dialog-title { font-weight: 600; text-align: center; padding: 8px; border-bottom: 1px solid var(--line); }
+.remark-dialog-body { padding: 12px 16px; font-size: 13px; }
+.remark-dialog-foot { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
 .orm { border: 1px solid var(--line); border-left: 4px solid var(--accent); border-radius: 4px; padding: 8px; }
 .orm.st-rj { border-left-color: var(--r); }
 .orm.st-cm { border-left-color: var(--s); }

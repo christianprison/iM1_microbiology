@@ -89,19 +89,22 @@ function valueText(o) {
   return [o.value, o.unit].filter(Boolean).join(' ');
 }
 
-function renderObr(obr) {
+function renderObr(obr, idx, obrs) {
+  // ABG: links die Überschrift des zugehörigen Isolats (vorangehendes MOI-OBR), mittig OBR-4.2 als Antibiogramm-Titel
+  let title = obr.text || obr.code;
+  if (obr.kind === 'ABG') {
+    const moi = obrs.slice(0, idx).reverse().find((o) => o.kind === 'MOI');
+    if (moi?.text) title = moi.text;
+  }
   const sec = el('div', { class: 'obr' },
-    el('div', { class: 'obr-title src', dataset: segData(obr.segIndex), text: obr.text || obr.code }));
+    el('div', { class: 'obr-title src', dataset: segData(obr.segIndex), text: title }));
+  if (obr.kind === 'CMT') return null; // erscheint als ⓘ-Bemerkung am Antibiogramm
   sec.append(...obr.documents.map(documentRow));
-  if (obr.notes.length && obr.kind !== 'CMT') sec.append(remark(obr.notes, obr.segIndex));
+  if (obr.notes.length) sec.append(remark(obr.notes, obr.segIndex));
 
   if (obr.kind === 'ABG') {
-    sec.append(renderAntibiogram(obr));
-    return sec;
-  }
-  if (obr.kind === 'CMT') {
-    const lines = cleanNotes(obr.notes);
-    sec.append(el('div', { class: 'cmt src', dataset: segData(obr.segIndex) }, lines.map((l) => el('div', { text: l || ' ' }))));
+    const cmt = obrs[idx + 1]?.kind === 'CMT' ? obrs[idx + 1] : null;
+    sec.append(renderAntibiogram(obr, cmt));
     return sec;
   }
 
@@ -120,29 +123,46 @@ function renderObr(obr) {
   return sec;
 }
 
-function renderAntibiogram(obr) {
+function showRemarkDialog(lines) {
+  const dlg = el('dialog', { class: 'remark-dialog' },
+    el('div', { class: 'remark-dialog-title', text: 'Bemerkung' }),
+    el('div', { class: 'remark-dialog-body' }, lines.map((l) => el('div', { text: l || '\u00a0' }))),
+    el('div', { class: 'remark-dialog-foot' },
+      el('button', { class: 'secondary small-btn', type: 'button', text: 'Schließen', onclick: () => dlg.close() })));
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg);
+  dlg.showModal();
+}
+
+// Darstellung nach den Netcare-Screenshots: mittiger Titel (OBR-4.2), Gruppen aus OBX-17, Wert „S (MHK)“
+function renderAntibiogram(obr, cmt) {
+  const box = el('div', { class: 'abg' });
+  const head = el('div', { class: 'abg-title src', dataset: segData(obr.segIndex) }, obr.text || obr.code);
+  if (cmt) {
+    head.append(el('button', {
+      class: 'info-btn', type: 'button', title: 'Bemerkung zum Antibiogramm (CMT)', text: 'ⓘ',
+      onclick: (ev) => { ev.stopPropagation(); showRemarkDialog(cleanNotes(cmt.notes)); },
+    }));
+  }
+  box.append(head);
   const groups = new Map();
   for (const o of obr.observations) {
     const g = o.method || 'OTHERS';
     if (!groups.has(g)) groups.set(g, []);
     groups.get(g).push(o);
   }
-  const body = el('tbody');
   for (const [g, items] of groups) {
-    body.append(el('tr', { class: 'abx-group' }, el('th', { colspan: '3', text: g })));
+    box.append(el('div', { class: 'abg-group', text: g }));
     for (const o of items) {
-      body.append(el('tr', { class: 'src', dataset: segData(o.segIndex) },
-        el('td', { text: o.name || o.code }),
-        el('td', { class: 'mic', text: valueText(o) }),
-        el('td', { class: `sir sir-${o.flag.toLowerCase()}`, title: interpretationText(o.flag), text: o.flag })));
-      if (o.notes.length) {
-        body.append(el('tr', {}, el('td', { colspan: '3' }, remark(o.notes, o.segIndex))));
-      }
+      const mic = valueText(o);
+      const value = o.flag ? `${o.flag}${mic ? ` (${mic})` : ''}` : mic;
+      box.append(el('div', { class: 'abg-row src', dataset: segData(o.segIndex), title: interpretationText(o.flag) },
+        el('span', { class: 'abg-name', text: o.name || o.code }),
+        el('span', { class: 'abg-value', text: value })));
+      if (o.notes.length) box.append(remark(o.notes, o.segIndex));
     }
   }
-  return el('div', { class: 'table-wrap' }, el('table', { class: 'abx' },
-    el('thead', {}, el('tr', {}, el('th', { text: 'Antibiotikum' }), el('th', { text: 'MHK' }), el('th', { text: 'Bewertung' }))),
-    body));
+  return box;
 }
 
 export function renderReport(report, ack) {
@@ -176,7 +196,7 @@ export function renderReport(report, ack) {
     const seen = ack.has(key);
     const details = el('details', { class: `grp grp-${grp.status === 'F' ? 'final' : 'interim'}`, open: gi === 0 ? '' : null },
       el('summary', {},
-        `Entnahme ${grp.collected || '–'}${grp.specimenText ? ` Specimen ${grp.specimenText}` : ''}, ${grp.statusText} Ergebnisstatus`,
+        `Entnahme ${grp.collected || '–'}${grp.specimenText ? ` Specimen:${grp.specimenText}` : ''}, ${grp.statusText} Ergebnisstatus`,
         seen ? null : el('span', { class: 'unseen', text: ' (ungesichtete Ergebnisse)' })));
     const ackBtn = el('button', {
       class: seen ? 'small-btn' : 'secondary small-btn', type: 'button', text: seen ? 'gesichtet' : 'ungesichtet',
@@ -187,7 +207,7 @@ export function renderReport(report, ack) {
       el('span', {}, el('b', { text: 'Befunddatum ' }), grp.resultTime || '–'),
       el('span', {}, el('b', { text: 'Ergebnisstatus ' }), grp.statusText),
       ackBtn));
-    details.append(...grp.obrs.map(renderObr));
+    details.append(...grp.obrs.map((o, i, all) => renderObr(o, i, all)).filter(Boolean));
     viewer.append(details);
   });
 

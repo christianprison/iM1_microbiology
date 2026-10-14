@@ -57,7 +57,7 @@ OBR|2|BK-4711||BKISO1^Blood Culture Isolate - 1^LAB|||20260712221500|||||||20260
 OBX|1|IS|ORG^Microorganism identified^LAB|1|Escherichia coli||||||I|||20260712221500
 OBX|2|ST|BOT^Bottles positive^LAB|1|2 of 2||||||I|||20260712221500
 NTE|1|L|Final identification by MALDI-TOF.
-OBR|3|BK-4711||BKABG1^Antibiogram Escherichia coli^LAB|||20260712221500|||||||20260712230000|BK&BLOOD CULTURE^^^VEN&Venous blood|||||||20260714091000||MB|I||||||ABG
+OBR|3|BK-4711||BKABG1^Blood Culture Isolate - 1 - Antibiogram^LAB|||20260712221500|||||||20260712230000|BK&BLOOD CULTURE^^^VEN&Venous blood|||||||20260714091000||MB|I||||||ABG
 OBX|1|ST|AMP^Ampicillin^LAB|1|>8|mg/l||R|||I|||20260712221500|||Penicillins
 OBX|2|ST|AMS^Ampicillin/Sulbactam^LAB|1|4|mg/l||S|||I|||20260712221500|||Penicillins
 OBX|3|ST|PIT^Piperacillin/Tazobactam^LAB|1|<=4|mg/l||S|||I|||20260712221500|||Penicillins
@@ -66,7 +66,7 @@ OBX|5|ST|CTX^Cefotaxime^LAB|1|<=1|mg/l||S|||I|||20260712221500|||Cephalosporins
 OBX|6|ST|MEM^Meropenem^LAB|1|<=0.25|mg/l||S|||I|||20260712221500|||Carbapenems
 OBX|7|ST|CIP^Ciprofloxacin^LAB|1|>1|mg/l||R|||I|||20260712221500|||Fluoroquinolones
 OBX|8|ST|SXT^Cotrimoxazole^LAB|1|<=20|mg/l||S|||I|||20260712221500
-OBR|4|BK-4711||BKCMT1^Comment antibiogram^LAB|||20260712221500|||||||20260712230000|BK&BLOOD CULTURE^^^VEN&Venous blood|||||||20260714091000||MB|I||||||CMT
+OBR|4|BK-4711||BKCMT1^Blood Culture Isolate - 1 - Remark^LAB|||20260712221500|||||||20260712230000|BK&BLOOD CULTURE^^^VEN&Venous blood|||||||20260714091000||MB|I||||||CMT
 NTE|1|L|EUCAST clinical breakpoints v15.0.
 NTE|2|L|Further antibiotics on request.$hl7$, E'\n', E'\r'));
 

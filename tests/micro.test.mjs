@@ -30,7 +30,7 @@ test('Spezifikationsbeispiel: Abschnitte, Isolate, Bemerkungen', () => {
   assert.equal(r.groups.length, 1);
   const [grp] = r.groups;
   assert.equal(grp.collected, '09/07/26 12:57');
-  assert.equal(grp.specimenText, 'URINE RANDOM');
+  assert.equal(grp.specimenText, 'UR-URINE RANDOM');
   assert.equal(grp.statusText, 'Final');
   assert.equal(grp.orderNo, 'DEM-25');
   assert.deepEqual(r.obrs.map((o) => o.text), ['URINE ANALYSIS', 'URINE MACROSCOPY', 'URINE MICROSCOPY',
@@ -60,9 +60,9 @@ test('Spezifikationsbeispiel: Prüfung meldet die Abweichungen des Beispiels', (
 test('Blutkultur: Zwischenbefund, Antibiogramm mit Wirkstoffgruppen, CMT', () => {
   const r = report('oru_blutkultur_antibiogramm.hl7');
   assert.equal(r.groups[0].statusText, 'Intermediate');
-  assert.equal(r.groups[0].specimenText, 'BLOOD CULTURE');
+  assert.equal(r.groups[0].specimenText, 'BK-BLOOD CULTURE,Description:VEN-Venous blood');
   const abg = r.obrs.find((o) => o.kind === 'ABG');
-  assert.equal(abg.text, 'Antibiogram Escherichia coli');
+  assert.equal(abg.text, 'Blood Culture Isolate - 1 - Antibiogram');
   assert.equal(abg.observations.length, 8);
   assert.equal(abg.observations[0].flag, 'R');
   assert.equal(abg.observations[0].method, 'Penicillins');

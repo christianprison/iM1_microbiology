@@ -268,7 +268,9 @@ function buildGroups(report, issue) {
     return {
       ...grp,
       collected: formatTsShort(grp.collectedRaw),
-      specimenText: last.sourceText || last.sourceCode || last.typeText || '',
+      // Format wie im Viewer: „Specimen:BL-Blood,Description:N-Not Stated“
+      specimenText: [[last.sourceCode, last.sourceText].filter(Boolean).join('-'),
+        [last.typeCode, last.typeText].filter(Boolean).join('-')].reduce((a, b) => (b ? `${a},Description:${b}` : a)),
       status, statusText: RESULT_STATUS[status] || 'unbekannt',
       orderNo: first.placer || report.order?.placer || '',
       resultTime: formatTsShort(grp.obrs.map((o) => o.resultRaw).find(Boolean) || report.header.timeRaw),
