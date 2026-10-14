@@ -209,9 +209,14 @@ async function save() {
     res = await sb.from('messages').update({ title, hl7, updated_at: new Date().toISOString() })
       .eq('id', state.current.id).select('id,title,hl7,shared,owner_id').single();
   } else {
-    res = await sb.from('messages').insert({ title, hl7 }).select('id,title,hl7,shared,owner_id').single();
+    res = await sb.from('messages').insert({ title, hl7, owner_id: state.user.id, shared: false }).select('id,title,hl7,shared,owner_id').single();
   }
-  if (res.error) { toast(`Speichern fehlgeschlagen: ${res.error.message}`); return; }
+  if (res.error) {
+    toast(/row-level security/i.test(res.error.message)
+      ? 'Speichern nicht erlaubt: Ihre Adresse ist nicht für eigene Nachrichten freigeschaltet. Bitte den Administrator kontaktieren.'
+      : `Speichern fehlgeschlagen: ${res.error.message}`);
+    return;
+  }
   state.current = res.data;
   updateButtons();
   await loadList();
