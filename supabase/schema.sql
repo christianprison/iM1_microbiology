@@ -26,43 +26,30 @@ $$;
 revoke execute on function public.is_allowed() from public, anon;
 grant execute on function public.is_allowed() to authenticated;
 
--- 2) HL7-Nachrichten: gemeinsame Beispiele (shared = true, owner_id = null)
---    und private Nachrichten der Nutzer.
+-- 2) HL7-Beispielnachrichten: nur gemeinsame Beispiele (shared = true), nur lesend.
+--    Nutzer können nichts speichern – eigene Nachrichten bleiben im Browser.
+--    Beispiele pflegst du per SQL Editor (seed.sql).
 create table if not exists public.messages (
   id         uuid primary key default gen_random_uuid(),
-  owner_id   uuid references auth.users (id) on delete cascade default auth.uid(),
+  owner_id   uuid references auth.users (id) on delete cascade,
   title      text not null check (char_length(title) between 1 and 200),
   hl7        text not null check (char_length(hl7) <= 200000),
-  shared     boolean not null default false,
+  shared     boolean not null default true,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
-create index if not exists messages_owner_idx on public.messages (owner_id);
 
 alter table public.messages enable row level security;
-revoke all on public.messages from anon;
-grant select, insert, update, delete on public.messages to authenticated;
+revoke all on public.messages from anon, authenticated;
+grant select on public.messages to authenticated;
 
+drop policy if exists messages_insert on public.messages;
+drop policy if exists messages_update on public.messages;
+drop policy if exists messages_delete on public.messages;
 drop policy if exists messages_select on public.messages;
 create policy messages_select on public.messages
   for select to authenticated
-  using ((select public.is_allowed()) and (shared or owner_id = (select auth.uid())));
-
-drop policy if exists messages_insert on public.messages;
-create policy messages_insert on public.messages
-  for insert to authenticated
-  with check ((select public.is_allowed()) and owner_id = (select auth.uid()) and not shared);
-
-drop policy if exists messages_update on public.messages;
-create policy messages_update on public.messages
-  for update to authenticated
-  using ((select public.is_allowed()) and owner_id = (select auth.uid()))
-  with check (owner_id = (select auth.uid()) and not shared);
-
-drop policy if exists messages_delete on public.messages;
-create policy messages_delete on public.messages
-  for delete to authenticated
-  using ((select public.is_allowed()) and owner_id = (select auth.uid()));
+  using ((select public.is_allowed()) and shared);
 
 -- 3) Nutzer freischalten (Beispiel):
 -- insert into public.allowed_emails (email, note) values ('kunde@example.org', 'Kunde X');

@@ -3,7 +3,7 @@
 Stellt per HL7 v2.4 an iMedOne übermittelte Mikrobiologiebefunde so dar, wie sie im Mikrobiologie-Viewer erscheinen, und prüft Nachrichten gegen die **Schnittstellenbeschreibung HL7-IN Mikrobiologiebefunde, Version 1.2.5**.
 
 - **Befundansicht:** Gruppierung nach Entnahme (OBR-7), Statusbalken Final/Intermediate (OBR-25), Abschnitte je OBR (OBR-4.2), Erreger (OBR-31 = MOI, OBX Wertetyp IS), Antibiogramm nach Wirkstoffgruppe (OBR-31 = ABG, OBX-17), Kommentare (CMT, NTE), PDF-Dokumente (OBX Wertetyp ED), ORM-Auftragsstatus
-- **Ansichten:** Nachricht (nur die aktuelle), Fall (Case View/Kompakt: alle Befunde mit gleicher Fallnummer PV1-19), Patient (alle Befunde mit gleicher Patientennummer PID-3 über alle Fälle); Quelle sind alle für den Nutzer sichtbaren Nachrichten
+- **Ansichten:** Nachricht (nur die aktuelle), Fall (Case View/Kompakt: alle Befunde mit gleicher Fallnummer PV1-19), Patient (alle Befunde mit gleicher Patientennummer PID-3 über alle Fälle); Quelle sind die Beispiele und die Nachrichten der laufenden Sitzung
 - **Prüfung:** Pflichtfelder, feste Werte, Längen und Strukturregeln der Spezifikation, mit Verweis auf das jeweilige Kapitel
 - **HL7-Struktur:** Feldpositionen (z. B. `OBX-5.2`); ein Klick auf ein Befundelement springt zum Quellsegment
 
@@ -22,7 +22,7 @@ Festlegungen, die nicht in der Spezifikation stehen:
 
 | Ebene | Maßnahme |
 |---|---|
-| Daten | Liegen nur in Supabase, Zugriff per Row Level Security nur für Adressen in `allowed_emails` |
+| Daten | Supabase enthält nur die Beispielnachrichten; Lesen per Row Level Security nur für Adressen in `allowed_emails`, Schreiben für Nutzer gesperrt. Eigene Nachrichten verlassen den Browser nicht |
 | Login | Keine Selbstregistrierung, Login nur für angelegte Nutzer, ausschließlich per Einmalcode mit kurzer Laufzeit (kein Link in der Mail) |
 | Account-Enumeration | Die Login-Maske antwortet immer gleich, egal ob die Adresse bekannt ist |
 | Browser | Strikte Content Security Policy, keine externen Skripte (supabase-js liegt in `vendor/`), Ausgabe nur über `textContent` (kein XSS) |
@@ -32,7 +32,9 @@ Festlegungen, die nicht in der Spezifikation stehen:
 
 ## Datenschutz: Pseudonymisierung
 
-Beim Einfügen, beim Laden einer Datei und vor dem Speichern prüft die App jede Nachricht (`js/privacy.js`). Enthält der Patientenname (PID-5) keinen Hinweis auf Test- oder Musterdaten (Muster, Test, Demo, Beispiel, Dummy, Sample, Anonym …), gilt die Nachricht als wahrscheinlich echt und wird pseudonymisiert:
+Nachrichten der Nutzer werden nicht gespeichert: Sie existieren nur im Arbeitsspeicher des Browserfensters (Liste „Diese Sitzung“) und sind nach Abmelden oder Schließen verworfen. Die Datenbank enthält nur die gemeinsamen Beispiele und ist für Nutzer schreibgeschützt.
+
+Zusätzlich prüft die App beim Einfügen und beim Laden einer Datei jede Nachricht (`js/privacy.js`). Enthält der Patientenname (PID-5) keinen Hinweis auf Test- oder Musterdaten (Muster, Test, Demo, Beispiel, Dummy, Sample, Anonym …), gilt die Nachricht als wahrscheinlich echt und wird pseudonymisiert:
 
 - PID-5 Name → `MUSTER^PATIENT <Code>`, PID-7 Geburtsdatum → 01.01. des Geburtsjahres
 - PID-3 Patientennummer und PV1-19 Fallnummer → stabile Pseudonyme (Fall-/Patientenansicht bleibt nutzbar)
@@ -46,7 +48,7 @@ Der Nutzer erhält einen Hinweis mit allen Änderungen. Die Pseudonyme werden mi
 
 ### 1. Supabase
 
-1. **SQL Editor:** `supabase/schema.sql` ausführen, danach `supabase/seed.sql` (Beispielnachrichten).
+1. **SQL Editor:** `supabase/schema.sql` ausführen, danach `supabase/seed.sql` (Beispielnachrichten). Bestehende Projekte mit der älteren Schema-Fassung (mit Speichern) einmalig `supabase/migration_nur_lesen.sql` ausführen.
 2. **Authentication → Sign In / Providers:**
    - Email aktiv
    - „Allow new users to sign up“ **aus**

@@ -100,6 +100,10 @@ details.grp > summary { cursor: pointer; padding: 4px 10px; color: #fff; font-si
 .privacy-note { background: var(--i-bg); color: #5c4300; border: 1px solid #e8cf8a; border-radius: 4px; padding: 8px 10px; font-size: 13px; }
 .privacy-note ul { margin: 4px 0 4px 18px; padding: 0; }
 .editor p.small { margin: 0; }
+.session-item { display: flex; align-items: flex-start; gap: 2px; }
+.session-item .msg-item { flex: 1; }
+.remove-btn { background: none; border: none; color: var(--muted); padding: 4px 6px; }
+.remove-btn:hover { color: var(--danger); }
 
 /* Prüfung */
 .issue-table { border-collapse: collapse; width: 100%; font-size: 13px; }

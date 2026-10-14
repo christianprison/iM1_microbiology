@@ -7,7 +7,7 @@ import { pseudonymize, browserSalt } from './privacy.js';
 const $ = (id) => document.getElementById(id);
 const configured = !SUPABASE_URL.includes('DEIN-PROJEKT') && !SUPABASE_ANON_KEY.startsWith('DEIN-');
 
-const state = { user: null, messages: [], current: null, view: 'report', msg: null, scope: 'message' };
+const state = { user: null, examples: [], session: [], current: null, view: 'report', msg: null, scope: 'message' };
 // Alle sichtbaren Nachrichten für Fall- und Patientenansicht: id -> { title, report }
 let allReports = null;
 let allReportsLoading = false;
@@ -90,22 +90,22 @@ function onPaste() {
   setTimeout(() => {
     const ta = $('hl7');
     const checked = applyPrivacy(ta.value);
-    if (checked !== ta.value) {
-      ta.value = checked;
-      update();
-    }
+    if (checked !== ta.value) ta.value = checked;
+    syncEditor();
+    update();
   }, 0);
 }
 
 // ---------- Nachrichtenverwaltung ----------
+// Aus der Datenbank kommen nur die gemeinsamen Beispiele (nur lesend).
+// Eigene Nachrichten existieren ausschließlich im Arbeitsspeicher dieses Browserfensters.
+
+let sessionSeq = 0;
 
 async function loadList() {
-  const { data, error } = await sb.from('messages')
-    .select('id,title,shared,owner_id,updated_at')
-    .order('shared', { ascending: false })
-    .order('title');
+  const { data, error } = await sb.from('messages').select('id,title').eq('shared', true).order('title');
   if (error) { toast(`Laden fehlgeschlagen: ${error.message}`); return; }
-  state.messages = data;
+  state.examples = data;
   allReports = null;
   renderList();
   if (state.scope !== 'message') update();
@@ -114,27 +114,43 @@ async function loadList() {
 async function loadAllReports() {
   if (allReports || allReportsLoading) return;
   allReportsLoading = true;
-  const { data, error } = await sb.from('messages').select('id,title,hl7');
+  const { data, error } = await sb.from('messages').select('id,title,hl7').eq('shared', true);
   allReportsLoading = false;
   if (error) { toast(`Laden fehlgeschlagen: ${error.message}`); return; }
   allReports = new Map();
   for (const m of data) {
-    try {
-      const report = buildReport(parseHl7(m.hl7));
-      if (report.type === 'ORU^R01') allReports.set(m.id, { title: m.title, report });
-    } catch { /* fehlerhafte Nachrichten ignorieren */ }
+    const report = tryReport(m.hl7);
+    if (report) allReports.set(`ex:${m.id}`, { title: m.title, report });
   }
   update();
 }
 
-// Weitere Nachrichten desselben Falls (PV1-19) bzw. Patienten (PID-3)
+function tryReport(hl7) {
+  try {
+    const report = buildReport(parseHl7(hl7));
+    return report.type === 'ORU^R01' ? report : null;
+  } catch {
+    return null;
+  }
+}
+
+function currentKey() {
+  return state.current ? `${state.current.kind === 'example' ? 'ex' : 'se'}:${state.current.id}` : null;
+}
+
+// Weitere Nachrichten desselben Falls (PV1-19) bzw. Patienten (PID-3): Beispiele + Nachrichten dieser Sitzung
 function relatedReports(report) {
   if (state.scope === 'message' || !allReports) return [];
   const pid = report.patient.id;
   const cid = report.visit.caseId;
   if (!pid) return [];
-  return [...allReports.entries()]
-    .filter(([id]) => id !== state.current?.id)
+  const pool = [...allReports.entries()];
+  for (const m of state.session) {
+    const r = tryReport(m.hl7);
+    if (r) pool.push([`se:${m.id}`, { title: m.title, report: r }]);
+  }
+  return pool
+    .filter(([key]) => key !== currentKey())
     .map(([, v]) => v)
     .filter((v) => v.report.patient.id === pid && (state.scope === 'patient' || (cid && v.report.visit.caseId === cid)));
 }
@@ -148,87 +164,84 @@ function setScope(scope) {
 function renderList() {
   const list = $('msg-list');
   list.replaceChildren();
-  const groups = [
-    ['Beispiele', state.messages.filter((m) => m.shared)],
-    ['Eigene Nachrichten', state.messages.filter((m) => !m.shared)],
-  ];
-  for (const [title, items] of groups) {
-    list.append(el('div', { class: 'group', text: title }));
-    if (!items.length) list.append(el('div', { class: 'muted small', text: 'keine' }));
-    for (const m of items) {
-      list.append(el('button', {
-        class: `msg-item${state.current?.id === m.id ? ' active' : ''}`,
-        text: m.title,
-        onclick: () => openMessage(m.id),
-      }));
-    }
+  const isActive = (kind, id) => state.current?.kind === kind && state.current.id === id;
+
+  list.append(el('div', { class: 'group', text: 'Beispiele' }));
+  if (!state.examples.length) list.append(el('div', { class: 'muted small', text: 'keine' }));
+  for (const m of state.examples) {
+    list.append(el('button', {
+      class: `msg-item${isActive('example', m.id) ? ' active' : ''}`, text: m.title, onclick: () => openExample(m.id),
+    }));
+  }
+
+  list.append(el('div', { class: 'group', text: 'Diese Sitzung' }));
+  list.append(el('div', { class: 'muted small', text: 'Nur in diesem Browserfenster, nicht gespeichert.' }));
+  for (const m of state.session) {
+    list.append(el('div', { class: 'session-item' },
+      el('button', { class: `msg-item${isActive('session', m.id) ? ' active' : ''}`, text: m.title, onclick: () => openSession(m.id) }),
+      el('button', { class: 'remove-btn', type: 'button', title: 'Aus der Sitzung entfernen', text: '✕', onclick: () => removeSession(m.id) })));
   }
 }
 
-async function openMessage(id) {
-  const { data, error } = await sb.from('messages').select('id,title,hl7,shared,owner_id').eq('id', id).single();
-  if (error) { toast(`Öffnen fehlgeschlagen: ${error.message}`); return; }
-  state.current = data;
+function show(current, title, hl7) {
+  state.current = current;
   $('privacy-note').hidden = true;
-  $('title').value = data.title;
-  $('hl7').value = data.hl7;
-  updateButtons();
+  $('title').value = title;
+  $('hl7').value = hl7;
   renderList();
   update();
+}
+
+async function openExample(id) {
+  const { data, error } = await sb.from('messages').select('id,title,hl7').eq('id', id).single();
+  if (error) { toast(`Öffnen fehlgeschlagen: ${error.message}`); return; }
+  show({ kind: 'example', id }, data.title, data.hl7);
+}
+
+function openSession(id) {
+  const m = state.session.find((x) => x.id === id);
+  if (m) show({ kind: 'session', id }, m.title, m.hl7);
 }
 
 function newMessage() {
-  state.current = null;
-  $('privacy-note').hidden = true;
-  $('title').value = '';
-  $('hl7').value = '';
-  updateButtons();
-  renderList();
-  update();
+  show(null, '', '');
   $('hl7').focus();
 }
 
-function isOwn() {
-  return state.current && state.current.owner_id === state.user?.id;
+function addSession(title, hl7) {
+  const m = { id: ++sessionSeq, title: title || `Nachricht ${sessionSeq}`, hl7 };
+  state.session.push(m);
+  state.current = { kind: 'session', id: m.id };
+  $('title').value = m.title;
+  renderList();
+  return m;
 }
 
-function updateButtons() {
-  $('btn-delete').hidden = !isOwn();
-  $('btn-save').textContent = isOwn() ? 'Speichern' : 'Als eigene Nachricht speichern';
+// Änderungen im Editor landen in der Sitzungsliste; ein bearbeitetes Beispiel wird zur Kopie
+function syncEditor() {
+  const hl7 = $('hl7').value;
+  if (state.current?.kind === 'session') {
+    const m = state.session.find((x) => x.id === state.current.id);
+    if (m) m.hl7 = hl7;
+  } else if (hl7.trim()) {
+    const base = $('title').value.trim();
+    addSession(state.current?.kind === 'example' ? `Kopie: ${base}` : base, hl7);
+  }
 }
 
-async function save() {
-  const title = $('title').value.trim() || 'Ohne Titel';
-  const hl7 = applyPrivacy($('hl7').value);
-  if (hl7 !== $('hl7').value) {
-    $('hl7').value = hl7;
-    update();
+function onTitleChange() {
+  if (state.current?.kind !== 'session') return;
+  const m = state.session.find((x) => x.id === state.current.id);
+  if (m) {
+    m.title = $('title').value.trim() || m.title;
+    renderList();
   }
-  let res;
-  if (isOwn()) {
-    res = await sb.from('messages').update({ title, hl7, updated_at: new Date().toISOString() })
-      .eq('id', state.current.id).select('id,title,hl7,shared,owner_id').single();
-  } else {
-    res = await sb.from('messages').insert({ title, hl7, owner_id: state.user.id, shared: false }).select('id,title,hl7,shared,owner_id').single();
-  }
-  if (res.error) {
-    toast(/row-level security/i.test(res.error.message)
-      ? 'Speichern nicht erlaubt: Ihre Adresse ist nicht für eigene Nachrichten freigeschaltet. Bitte den Administrator kontaktieren.'
-      : `Speichern fehlgeschlagen: ${res.error.message}`);
-    return;
-  }
-  state.current = res.data;
-  updateButtons();
-  await loadList();
-  toast('Gespeichert.');
 }
 
-async function remove() {
-  if (!isOwn() || !confirm(`„${state.current.title}“ löschen?`)) return;
-  const { error } = await sb.from('messages').delete().eq('id', state.current.id);
-  if (error) { toast(`Löschen fehlgeschlagen: ${error.message}`); return; }
-  newMessage();
-  await loadList();
+function removeSession(id) {
+  state.session = state.session.filter((x) => x.id !== id);
+  if (state.current?.kind === 'session' && state.current.id === id) newMessage();
+  else { renderList(); update(); }
 }
 
 function loadFile(ev) {
@@ -237,11 +250,9 @@ function loadFile(ev) {
   if (file.size > 200_000) { toast('Datei zu groß (max. 200 KB).'); return; }
   const reader = new FileReader();
   reader.onload = () => {
-    state.current = null;
-    $('title').value = file.name.replace(/\.[^.]+$/, '');
-    $('hl7').value = applyPrivacy(String(reader.result));
-    updateButtons();
-    renderList();
+    const hl7 = applyPrivacy(String(reader.result));
+    const m = addSession(file.name.replace(/\.[^.]+$/, ''), hl7);
+    $('hl7').value = m.hl7;
     update();
   };
   reader.readAsText(file);
@@ -327,8 +338,10 @@ async function onSession(session) {
   state.user = session?.user ?? null;
   if (!state.user) {
     clearTimeout(idleTimer);
-    state.messages = [];
+    state.examples = [];
+    state.session = [];
     state.current = null;
+    $('privacy-note').hidden = true;
     $('hl7').value = '';
     $('title').value = '';
     showLogin();
@@ -338,7 +351,6 @@ async function onSession(session) {
   $('app').hidden = false;
   $('user-email').textContent = state.user.email;
   resetIdle();
-  updateButtons();
   update();
   await loadList();
 }
@@ -359,10 +371,9 @@ function init() {
   $('login-back').addEventListener('click', showLogin);
   $('btn-logout').addEventListener('click', logout);
   $('btn-new').addEventListener('click', newMessage);
-  $('btn-save').addEventListener('click', save);
-  $('btn-delete').addEventListener('click', remove);
+  $('title').addEventListener('input', debounce(onTitleChange, 300));
   $('file').addEventListener('change', loadFile);
-  $('hl7').addEventListener('input', debounce(update, 250));
+  $('hl7').addEventListener('input', debounce(() => { syncEditor(); update(); }, 250));
   $('hl7').addEventListener('paste', onPaste);
   $('tab-report').addEventListener('click', () => setView('report'));
   $('tab-issues').addEventListener('click', () => setView('issues'));
