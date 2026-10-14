@@ -19,13 +19,13 @@
       <form id="login-step-mail">
         <label for="login-email">E-Mail-Adresse</label>
         <input id="login-email" type="email" autocomplete="email" required maxlength="254">
-        <button id="login-send" type="submit">Anmeldelink anfordern</button>
+        <button id="login-send" type="submit">Anmeldecode anfordern</button>
       </form>
       <form id="login-step-code" hidden>
         <label for="login-code">Code aus der E-Mail</label>
         <input id="login-code" inputmode="numeric" autocomplete="one-time-code" required maxlength="10" pattern="[0-9 ]{6,10}">
         <button type="submit">Anmelden</button>
-        <p class="muted small">Alternativ den Link in der E-Mail in diesem Browser öffnen.</p>
+        <p class="muted small">Der Code ist einige Minuten gültig und nur einmal verwendbar.</p>
         <button id="login-back" type="button" class="link">Andere Adresse verwenden</button>
       </form>
       <p id="login-info" class="info" role="status"></p>

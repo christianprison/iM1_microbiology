@@ -32,17 +32,15 @@ async function requestCode(ev) {
   if (!email) return;
   const btn = $('login-send');
   btn.disabled = true;
-  const { error } = await sb.auth.signInWithOtp({
-    email,
-    options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname },
-  });
+  // Anmeldung ausschließlich per Einmalcode (kein Link in der Mail)
+  const { error } = await sb.auth.signInWithOtp({ email, options: { shouldCreateUser: false } });
   btn.disabled = false;
   // Bewusst keine Unterscheidung zwischen bekannten und unbekannten Adressen (keine Account-Enumeration).
   if (error && error.status === 429) {
     $('login-info').textContent = 'Zu viele Anfragen. Bitte später erneut versuchen.';
     return;
   }
-  $('login-info').textContent = 'Falls die Adresse freigeschaltet ist, wurde eine E-Mail mit Anmeldelink und Code versendet.';
+  $('login-info').textContent = 'Falls die Adresse freigeschaltet ist, wurde eine E-Mail mit einem Anmeldecode versendet.';
   $('login-step-mail').hidden = true;
   $('login-step-code').hidden = false;
   $('login-code').focus();
@@ -331,8 +329,6 @@ async function onSession(session) {
     showLogin();
     return;
   }
-  // Anmeldeparameter aus der Adresszeile entfernen
-  if (location.search || location.hash) history.replaceState(null, '', location.pathname);
   $('login').hidden = true;
   $('app').hidden = false;
   $('user-email').textContent = state.user.email;
@@ -350,7 +346,7 @@ function init() {
     return;
   }
   sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+    auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
   });
 
   $('login-step-mail').addEventListener('submit', requestCode);

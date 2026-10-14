@@ -9,7 +9,7 @@ Stellt per HL7 v2.4 an iMedOne übermittelte Mikrobiologiebefunde so dar, wie si
 
 Technik:
 - Frontend: statisch auf GitHub Pages, ohne Build-Schritt
-- Login und Daten: Supabase (E-Mail-Code bzw. Magic Link, nur freigeschaltete Adressen)
+- Login und Daten: Supabase (Einmalcode per E-Mail, nur freigeschaltete Adressen)
 - Die HL7-Auswertung läuft komplett im Browser.
 
 Festlegungen, die nicht in der Spezifikation stehen:
@@ -23,7 +23,7 @@ Festlegungen, die nicht in der Spezifikation stehen:
 | Ebene | Maßnahme |
 |---|---|
 | Daten | Liegen nur in Supabase, Zugriff per Row Level Security nur für Adressen in `allowed_emails` |
-| Login | Keine Selbstregistrierung, Login nur für angelegte Nutzer, Einmalcode/-link mit kurzer Laufzeit |
+| Login | Keine Selbstregistrierung, Login nur für angelegte Nutzer, ausschließlich per Einmalcode mit kurzer Laufzeit (kein Link in der Mail) |
 | Account-Enumeration | Die Login-Maske antwortet immer gleich, egal ob die Adresse bekannt ist |
 | Browser | Strikte Content Security Policy, keine externen Skripte (supabase-js liegt in `vendor/`), Ausgabe nur über `textContent` (kein XSS) |
 | Sitzung | Automatische Abmeldung nach 30 Minuten Inaktivität |
@@ -55,12 +55,14 @@ Der Nutzer erhält einen Hinweis mit allen Änderungen. Die Pseudonyme werden mi
    - Site URL: `https://<github-user>.github.io/<repo>/`
    - Redirect URLs: nur diese eine Adresse
 4. **Authentication → Emails → SMTP Settings:** eigenen SMTP-Server eintragen. Der eingebaute Mailversand von Supabase stellt nur an Mitglieder des Supabase-Teams zu und ist stark limitiert.
-5. **Authentication → Emails → Templates → Magic Link:** Code und Link einfügen, z. B.:
+5. **Authentication → Emails → Templates → Magic Link:** nur den Code versenden, keinen Link (Links werden von Mailfiltern vorab aufgerufen und wirken im geschäftlichen Umfeld verdächtig). Betreff z. B. `Ihr Anmeldecode für den Mikrobiologie-Simulator`, Inhalt:
    ```html
-   <p>Ihr Anmeldecode: <strong>{{ .Token }}</strong></p>
-   <p>Oder hier klicken: <a href="{{ .ConfirmationURL }}">Anmelden</a></p>
+   <p>Guten Tag,</p>
+   <p>Ihr Anmeldecode für den Mikrobiologie-Befundsimulator lautet:</p>
+   <p style="font-size:24px;font-weight:bold;letter-spacing:4px">{{ .Token }}</p>
+   <p>Der Code ist einige Minuten gültig und kann nur einmal verwendet werden.
+   Wenn Sie keine Anmeldung angefordert haben, können Sie diese E-Mail ignorieren.</p>
    ```
-   Der Code funktioniert auch, wenn Mail-Scanner den Link vorab aufrufen oder die Mail auf einem anderen Gerät geöffnet wird.
 6. **Project Settings → API:** Project URL und anon/publishable Key in `js/config.js` eintragen. Den `service_role`/`secret` Key **niemals** dort eintragen.
 
 ### 2. Nutzer freischalten
