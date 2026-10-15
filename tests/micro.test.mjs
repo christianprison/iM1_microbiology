@@ -148,3 +148,19 @@ test('Fehlendes OBX-14 ist nur eine Warnung, wenn OBR-7 gesetzt ist', () => {
     'OBX|1|ST|C^Kultur||negativ||||||F'].join('\r')));
   assert.deepEqual(without.issues.filter((i) => i.field === 'OBX-14').map((i) => i.level), ['error']);
 });
+
+test('OBX-8: Antibiotika ohne ABG (Gruppe in OBX-17 oder S/I/R) erzeugen keine Warnung', () => {
+  const msg = [
+    'MSH|^~\\&|LAB||iMedOne||20260101120000||ORU^R01|X1|P|2.4',
+    'PID|1||1||MUSTER^TEST',
+    'PV1|1|I||||||||||||||||||9',
+    'OBR|1|||ZMGCUL^Isolate - 1 Antibiogram|||20260101100000|||||||||||||||20260101110000||MB|F',
+    'OBX|1|ST|42355-8^TIGECYCLINE||2|||S|||F|||20260101100000',
+    'OBX|2|ST|16-6^AMPICILLIN||>=32|||R|||F|||20260101100000|||PENICILLINS',
+    'OBX|3|ST|LEST^LEUCOCYTE ESTERASE||3 plus|||**|||F|||20260101100000',
+  ].join('\r');
+  const r = buildReport(parseHl7(msg));
+  const w = r.issues.filter((i) => i.field === 'OBX-8');
+  assert.equal(w.length, 1);
+  assert.match(w[0].text, /\*\*/);
+});

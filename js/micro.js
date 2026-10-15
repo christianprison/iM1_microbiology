@@ -197,8 +197,9 @@ function readObx(seg, g, obr, issue) {
   if (obr.kind === 'ABG') {
     if (!o.flag) issue('info', seg, 'OBX-8', 'Antibiotikum ohne Bewertung (S/I/R) in OBX-8.');
     if (!o.method) issue('info', seg, 'OBX-17', 'Keine Wirkstoffgruppe angegeben – iMedOne setzt „OTHERS“.');
-  } else if (o.flag) {
-    issue('warning', seg, 'OBX-8', 'Abnormal Flags werden nur bei Antibiotika (OBR-31 = ABG) erwartet (1.2.4).');
+  } else if (o.flag && !o.method && !/^(S|I|R|SDD|NS)$/.test(o.flag)) {
+    // Antibiotikum: ABG-Abschnitt, Wirkstoffgruppe in OBX-17 oder Bewertung S/I/R
+    issue('warning', seg, 'OBX-8', `Abnormal Flag „${o.flag}“ bei einer Zeile, die nicht als Antibiotikum erkennbar ist – Flag-Werte werden nur bei Antibiotika erwartet (1.2.4).`);
   }
   return o;
 }
