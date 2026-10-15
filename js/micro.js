@@ -151,7 +151,11 @@ function readObx(seg, g, obr, issue) {
     if (obr.observations.length || obr.documents.length) {
       issue('warning', seg, 'OBX-2', 'Das Dokument-OBX (ED) wird laut 1.2.1/1.2.6 als erstes OBX der Gruppe erwartet.');
     }
-    req(seg, o.timeRaw, 'OBX-14', 'Dokumentendatum fehlt (1.2.6).', issue);
+    if (!o.timeRaw) {
+      issue(obr.collectedRaw ? 'warning' : 'error', seg, 'OBX-14', obr.collectedRaw
+        ? 'Dokumentendatum fehlt (1.2.6) – Rückfall auf OBR-7.'
+        : 'Dokumentendatum fehlt (1.2.6), auch OBR-7 ist leer.');
+    }
     issue('info', seg, 'OBX-2', `PDF-Dokument „${o.name || o.code}“ wird in iMedOne im DMS abgelegt und nicht im Mikrobiologie-Viewer angezeigt.`);
     return o;
   }
@@ -174,7 +178,12 @@ function readObx(seg, g, obr, issue) {
   if (o.status && !['F', 'I', 'P'].includes(o.status)) {
     issue('warning', seg, 'OBX-11', `Ergebnisstatus „${o.status}“ wird nicht unterstützt (F, I, P).`);
   }
-  req(seg, o.timeRaw, 'OBX-14', 'Datum/Uhrzeit der Probenentnahme fehlt (1.2.4, Pflichtfeld).', issue);
+  // OBX-14 ist laut 1.2.4 Pflicht, aber meist redundant zu OBR-7: nur ohne OBR-7 ein Fehler
+  if (!o.timeRaw) {
+    issue(obr.collectedRaw ? 'warning' : 'error', seg, 'OBX-14', obr.collectedRaw
+      ? 'Datum/Uhrzeit der Probenentnahme fehlt (1.2.4, Pflichtfeld) – iMedOne verwendet OBR-7.'
+      : 'Datum/Uhrzeit der Probenentnahme fehlt (1.2.4, Pflichtfeld), auch OBR-7 ist leer.');
+  }
 
   if (type === 'IS') {
     req(seg, o.value, 'OBX-5', 'Bei Wertetyp IS muss der Name des Mikroorganismus in OBX-5 stehen (1.2.4).', issue);

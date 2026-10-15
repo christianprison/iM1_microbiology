@@ -132,3 +132,19 @@ test('Hinweis bei HTML-Tags im Text', () => {
   assert.equal(r.obrs[0].observations[0].value, 'Zeile 1<BR>Zeile 2');
   assert.ok(r.issues.some((i) => i.field === 'OBX-5' && /<BR>/.test(i.text) && /\\\.br\\/.test(i.text)));
 });
+
+test('Fehlendes OBX-14 ist nur eine Warnung, wenn OBR-7 gesetzt ist', () => {
+  const base = [
+    'MSH|^~\\&|LAB||iMedOne||20260101120000||ORU^R01|X1|P|2.4',
+    'PID|1||1||MUSTER^TEST',
+    'PV1|1|I||||||||||||||||||9',
+  ];
+  const withObr7 = buildReport(parseHl7([...base,
+    'OBR|1|||C^Kultur|||20260101100000|||||||||||||||20260101110000||MB|F',
+    'OBX|1|ST|C^Kultur||negativ||||||F'].join('\r')));
+  assert.deepEqual(withObr7.issues.filter((i) => i.field === 'OBX-14').map((i) => i.level), ['warning']);
+  const without = buildReport(parseHl7([...base,
+    'OBR|1|||C^Kultur||||||||||||||||||20260101110000||MB|F',
+    'OBX|1|ST|C^Kultur||negativ||||||F'].join('\r')));
+  assert.deepEqual(without.issues.filter((i) => i.field === 'OBX-14').map((i) => i.level), ['error']);
+});
