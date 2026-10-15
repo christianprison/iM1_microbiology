@@ -128,7 +128,7 @@ function readObx(seg, g, obr, issue) {
     segIndex: seg.index, setId: g(seg, 1), type,
     code: g(seg, 3, 1), name: g(seg, 3, 2), subId: g(seg, 4),
     value: '', unit: g(seg, 6, 2) || g(seg, 6, 1), range: g(seg, 7), flag: g(seg, 8).toUpperCase(),
-    status: g(seg, 11).toUpperCase(), timeRaw: g(seg, 14), method: g(seg, 17, 1), notes: [],
+    status: g(seg, 11).toUpperCase(), timeRaw: g(seg, 14), method: g(seg, 17, 1).trim(), notes: [],
   };
   const at = (f) => `OBX-${f}`;
 

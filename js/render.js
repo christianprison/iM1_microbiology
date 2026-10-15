@@ -82,7 +82,7 @@ function renderObr(obr, idx, obrs) {
     return sec;
   }
 
-  obr.observations.forEach((o, i) => {
+  const renderObx = (o, i) => {
     if (o.type === 'IS') {
       // Erregername nur bei OBR-31 = MOI als Mikroorganismus (erstes OBX)
       if (obr.kind === 'MOI' && i === 0) {
@@ -93,7 +93,25 @@ function renderObr(obr, idx, obrs) {
         o.flag ? el('span', { class: 'flag', text: ` ${o.flag}` }) : null));
     }
     if (o.notes.length) sec.append(remark(o.notes, o.segIndex));
-  });
+  };
+
+  // Ist OBX-17.1 (Gruppenbezeichnung) gesetzt, Zeilen auch ohne OBR-31 = ABG unter Unterüberschriften gliedern
+  const indexed = obr.observations.map((o, i) => ({ o, i }));
+  if (indexed.some(({ o }) => o.method && o.type !== 'IS')) {
+    indexed.filter(({ o }) => o.type === 'IS').forEach(({ o, i }) => renderObx(o, i));
+    const groups = new Map();
+    for (const x of indexed.filter(({ o }) => o.type !== 'IS')) {
+      const g = x.o.method || 'OTHERS';
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(x);
+    }
+    for (const [g, items] of groups) {
+      sec.append(el('div', { class: 'abg-group', text: g }));
+      items.forEach(({ o, i }) => renderObx(o, i));
+    }
+  } else {
+    indexed.forEach(({ o, i }) => renderObx(o, i));
+  }
   return sec;
 }
 
