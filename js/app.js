@@ -314,7 +314,9 @@ function update() {
         out.scrollTop = 0;
       }
     } else if (spec === false) {
-      out.append(el('p', { class: 'muted', text: 'Die Spezifikation ist noch nicht hinterlegt.' }));
+      out.append(el('p', { class: 'muted', text: 'Die Spezifikation ist noch nicht hinterlegt.' }),
+        el('button', { type: 'button', class: 'secondary small-btn', text: 'Erneut laden',
+          onclick: () => { spec = null; update(); } }));
     } else {
       out.append(el('p', { class: 'muted', text: 'Spezifikation wird geladen …' }));
       loadSpec();
@@ -436,7 +438,7 @@ function init() {
   $('tab-report').addEventListener('click', () => setView('report'));
   $('tab-issues').addEventListener('click', () => setView('issues'));
   $('tab-structure').addEventListener('click', () => setView('structure'));
-  $('tab-spec').addEventListener('click', () => setView('spec'));
+  $('tab-spec').addEventListener('click', () => { if (spec === false) spec = null; setView('spec'); });
   $('output').addEventListener('click', onOutputClick);
   for (const evName of ['click', 'keydown', 'mousemove', 'touchstart']) {
     document.addEventListener(evName, debounce(resetIdle, 1000), { passive: true });
