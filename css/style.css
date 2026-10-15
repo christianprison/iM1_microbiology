@@ -116,6 +116,22 @@ details.grp > summary { cursor: pointer; padding: 4px 10px; color: #fff; font-si
 .ok { background: var(--s-bg); color: var(--s); padding: 8px 10px; border-radius: 4px; }
 .tab.has-errors { color: var(--r); }
 
+/* Spezifikation */
+.spec { font-size: 13px; }
+.spec h2 { font-size: 17px; margin: 0 0 2px; }
+.spec-toc { border: 1px solid var(--line); border-radius: 4px; padding: 8px 12px; margin: 10px 0; background: #fbfcfd; }
+.spec-toc ul { list-style: none; margin: 4px 0 0; padding: 0; }
+.spec-toc li.lvl-2 { padding-left: 14px; } .spec-toc li.lvl-3 { padding-left: 28px; }
+.spec-toc a { color: var(--accent); text-decoration: none; }
+.spec-h { color: var(--accent); margin: 18px 0 6px; scroll-margin-top: 8px; }
+.spec-table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+.spec-table th, .spec-table td { border: 1px solid var(--line); padding: 3px 6px; text-align: left; vertical-align: top; }
+.spec-table th { background: var(--bg); font-weight: 600; }
+.spec-table.mono-first td:first-child { font-family: var(--mono); white-space: pre; }
+.spec-table tr.hl td { background: #fff3b0; }
+.spec-pre { font-family: var(--mono); font-size: 11px; white-space: pre-wrap; word-break: break-all; background: var(--bg); padding: 8px; border-radius: 4px; }
+.spec-link { background: none; border: none; color: var(--accent); padding: 0; text-decoration: underline; font: inherit; }
+
 /* Struktur */
 .structure { font-family: var(--mono); font-size: 12px; }
 .seg { white-space: pre-wrap; word-break: break-all; padding: 2px 4px; border-radius: 3px; }

@@ -1,7 +1,7 @@
 import { SUPABASE_URL, SUPABASE_ANON_KEY, IDLE_LOGOUT_MINUTES } from './config.js';
 import { parseHl7, Hl7Error } from './hl7.js';
 import { buildReport, SPEC_VERSION } from './micro.js';
-import { el, renderReport, renderIssues, renderStructure } from './render.js';
+import { el, renderReport, renderIssues, renderStructure, renderSpec, focusSpec } from './render.js';
 import { pseudonymize, browserSalt, decodeHl7 } from './privacy.js';
 
 const $ = (id) => document.getElementById(id);
@@ -15,6 +15,10 @@ let allReportsLoading = false;
 const ack = new Set();
 ack.onchange = () => update();
 let sb = null;
+// Spezifikation (vertraulich, nur aus Supabase nach Login)
+let spec = null;
+let specLoading = false;
+let pendingSpecRef = null;
 
 // ---------- Anmeldung ----------
 
@@ -173,6 +177,21 @@ function relatedReports(report) {
     .filter((v) => v.report.patient.id === pid && (state.scope === 'patient' || (cid && v.report.visit.caseId === cid)));
 }
 
+async function loadSpec() {
+  if (spec || specLoading) return;
+  specLoading = true;
+  const { data, error } = await sb.from('spec').select('version,data').maybeSingle();
+  specLoading = false;
+  if (error) { toast(`Spezifikation konnte nicht geladen werden: ${error.message}`); return; }
+  spec = data?.data || false;
+  if (state.view === 'spec') update();
+}
+
+function openSpecRef(chapter, field) {
+  pendingSpecRef = { chapter, field };
+  setView('spec');
+}
+
 function setScope(scope) {
   state.scope = scope;
   if (scope !== 'message') loadAllReports();
@@ -284,6 +303,24 @@ function update() {
   const text = $('hl7').value;
   out.replaceChildren();
   state.msg = null;
+  if (state.view === 'spec') {
+    if (spec) {
+      out.append(renderSpec(spec));
+      if (pendingSpecRef) {
+        const ref = pendingSpecRef;
+        pendingSpecRef = null;
+        requestAnimationFrame(() => focusSpec(ref.chapter, ref.field));
+      } else {
+        out.scrollTop = 0;
+      }
+    } else if (spec === false) {
+      out.append(el('p', { class: 'muted', text: 'Die Spezifikation ist noch nicht hinterlegt.' }));
+    } else {
+      out.append(el('p', { class: 'muted', text: 'Spezifikation wird geladen …' }));
+      loadSpec();
+    }
+    return;
+  }
   if (!text.trim()) {
     out.append(el('p', { class: 'muted', text: 'HL7-Nachricht links einfügen, eine Datei laden oder ein Beispiel wählen.' }));
     return;
@@ -307,7 +344,7 @@ function update() {
       loading: state.scope !== 'message' && !allReports,
     }));
   } else if (state.view === 'issues') {
-    out.append(renderIssues(report, SPEC_VERSION));
+    out.append(renderIssues(report, SPEC_VERSION, openSpecRef));
   } else {
     out.append(el('p', { class: 'muted small', text: 'Feld anklicken bzw. mit der Maus darauf zeigen, um die HL7-Position zu sehen.' }));
     out.append(el('div', { id: 'pick', class: 'pick' }));
@@ -332,7 +369,7 @@ function onOutputClick(ev) {
 
 function setView(v) {
   state.view = v;
-  for (const t of ['report', 'issues', 'structure']) $(`tab-${t}`).classList.toggle('active', v === t);
+  for (const t of ['report', 'issues', 'structure', 'spec']) $(`tab-${t}`).classList.toggle('active', v === t);
   update();
 }
 
@@ -358,6 +395,7 @@ async function onSession(session) {
     clearTimeout(idleTimer);
     state.examples = [];
     state.session = [];
+    spec = null;
     state.current = null;
     pendingChanges = [];
     $('privacy-note').hidden = true;
@@ -398,6 +436,7 @@ function init() {
   $('tab-report').addEventListener('click', () => setView('report'));
   $('tab-issues').addEventListener('click', () => setView('issues'));
   $('tab-structure').addEventListener('click', () => setView('structure'));
+  $('tab-spec').addEventListener('click', () => setView('spec'));
   $('output').addEventListener('click', onOutputClick);
   for (const evName of ['click', 'keydown', 'mousemove', 'touchstart']) {
     document.addEventListener(evName, debounce(resetIdle, 1000), { passive: true });

@@ -5,6 +5,7 @@ Stellt per HL7 v2.4 an iMedOne übermittelte Mikrobiologiebefunde so dar, wie si
 - **Befundansicht:** Gruppierung nach Entnahme (OBR-7), Statusbalken Final/Intermediate (OBR-25), Abschnitte je OBR (OBR-4.2), Erreger (OBR-31 = MOI, OBX Wertetyp IS), Antibiogramm nach Wirkstoffgruppe (OBR-31 = ABG, OBX-17), Kommentare (CMT, NTE), ORM-Auftragsstatus. PDF-Dokumente (OBX Wertetyp ED) landen in iMedOne im DMS und werden daher nicht angezeigt, nur in der Prüfung bewertet
 - **Ansichten:** Nachricht (nur die aktuelle), Fall (Case View/Kompakt: alle Befunde mit gleicher Fallnummer PV1-19), Patient (alle Befunde mit gleicher Patientennummer PID-3 über alle Fälle); Quelle sind die Beispiele und die Nachrichten der laufenden Sitzung
 - **Prüfung:** Pflichtfelder, feste Werte, Längen und Strukturregeln der Spezifikation, mit Verweis auf das jeweilige Kapitel
+- **Spezifikation:** die Schnittstellenbeschreibung als eigener Reiter (ohne Screenshots); Kapitelverweise in der Prüfung sind Links, die zum Kapitel springen und die Zeile des betroffenen Feldes markieren. Der Inhalt liegt nur in Supabase (Tabelle `spec`, nur nach Login lesbar) und nicht im öffentlichen Repository
 - **HL7-Struktur:** Feldpositionen (z. B. `OBX-5.2`); ein Klick auf ein Befundelement springt zum Quellsegment
 
 Technik:
@@ -15,6 +16,7 @@ Technik:
 Festlegungen, die nicht in der Spezifikation stehen:
 - Befunddatum aus OBR-22 (bestätigt); fehlt OBR-22, zeigt der Simulator ersatzweise MSH-7 und gibt einen Hinweis aus
 - Ein OBX mit Wertetyp IS ohne OBR-31 = MOI wird nicht als Erreger angezeigt (abgeleitet aus Isolat 2 im Beispiel der Spezifikation)
+- Gruppenüberschriften aus OBX-17.1 werden in jedem Abschnitt verwendet, auch ohne OBR-31 = ABG
 - Antibiogramm nach den Screenshots „Microbiology results viewer – NG form (Netcare)“: links die Überschrift des vorangehenden MOI-OBR, mittig OBR-4.2, Gruppen aus OBX-17, Wert als „S (MHK)“; Kommentare aus einem folgenden CMT-OBR über das ⓘ-Symbol
 - HTML-Tags wie `<BR>` in Texten werden wörtlich angezeigt (Annahme); die Prüfung weist darauf hin, Zeilenumbruch in HL7 ist `\.br\`
 - Probenangabe im Balken als „Specimen:Code-Text,Description:Code-Text“ (OBR-15.1 bzw. OBR-15.4)
@@ -53,7 +55,7 @@ Dateien werden als UTF-8 gelesen, sonst im Zeichensatz aus MSH-18 (z. B. `8859/1
 
 ### 1. Supabase
 
-1. **SQL Editor:** `supabase/schema.sql` ausführen, danach `supabase/seed.sql` (Beispielnachrichten). Bestehende Projekte mit der älteren Schema-Fassung (mit Speichern) einmalig `supabase/migration_nur_lesen.sql` ausführen.
+1. **SQL Editor:** `supabase/schema.sql` ausführen, danach `supabase/seed.sql` (Beispielnachrichten). Bestehende Projekte mit der älteren Schema-Fassung (mit Speichern) einmalig `supabase/migration_nur_lesen.sql` ausführen. Für den Reiter „Spezifikation“ `supabase/migration_spezifikation.sql` und anschließend die separat (nicht im Repository) bereitgestellte `spezifikation_daten.sql` ausführen.
 2. **Authentication → Sign In / Providers:**
    - Email aktiv
    - „Allow new users to sign up“ **aus**

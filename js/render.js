@@ -240,7 +240,67 @@ export function renderReport(report, ack, opts = {}) {
 
 const LEVEL = { error: 'Fehler', warning: 'Warnung', info: 'Hinweis' };
 
-export function renderIssues(report, specVersion) {
+// Kapitelverweise wie „(1.2.4)“ oder „(1.2.4, Pflichtfeld)“ als Link auf den Reiter „Spezifikation“
+function linkChapters(text, field, onSpecRef) {
+  if (!onSpecRef) return [text];
+  const out = [];
+  let last = 0;
+  for (const m of text.matchAll(/\((\d\.\d(?:\.\d)?)(?=[,)])/g)) {
+    const start = m.index + 1;
+    out.push(text.slice(last, start));
+    out.push(el('button', {
+      type: 'button', class: 'spec-link', text: m[1], title: `Kapitel ${m[1]} der Spezifikation öffnen`,
+      onclick: (ev) => { ev.stopPropagation(); onSpecRef(m[1], field); },
+    }));
+    last = start + m[1].length;
+  }
+  out.push(text.slice(last));
+  return out;
+}
+
+// Spezifikation aus strukturierten Daten (Supabase), ausschließlich über textContent
+export function renderSpec(spec) {
+  const root = el('div', { class: 'spec' });
+  root.append(el('h2', { text: spec.title }),
+    el('p', { class: 'muted' }, [...spec.subtitle, `Version ${spec.version}`, `Datum: ${spec.date}`].join(' · ')));
+  const toc = el('nav', { class: 'spec-toc' }, el('b', { text: 'Inhaltsverzeichnis' }),
+    el('ul', {}, spec.sections.map((sec) => el('li', { class: `lvl-${sec.level}` },
+      el('a', { href: `#spec-${sec.id}`, text: `${/^\d/.test(sec.id) ? `${sec.id} ` : ''}${sec.title}`,
+        onclick: (ev) => { ev.preventDefault(); document.getElementById(`spec-${sec.id}`)?.scrollIntoView(); } })))));
+  root.append(toc);
+  for (const sec of spec.sections) {
+    const h = el(`h${Math.min(sec.level + 2, 5)}`, { id: `spec-${sec.id}`, class: 'spec-h',
+      text: `${/^\d/.test(sec.id) ? `${sec.id} ` : ''}${sec.title}` });
+    const box = el('section', { class: 'spec-sec', dataset: { chapter: sec.id } }, h);
+    for (const b of sec.blocks) {
+      if (b.type === 'p') box.append(el('p', { text: b.text }));
+      else if (b.type === 'ul') box.append(el('ul', {}, b.items.map((x) => el('li', { text: x }))));
+      else if (b.type === 'pre') box.append(el('pre', { class: 'spec-pre', text: b.text }));
+      else if (b.type === 'table') {
+        box.append(el('div', { class: 'table-wrap' }, el('table', { class: `spec-table${b.mono ? ' mono-first' : ''}` },
+          el('thead', {}, el('tr', {}, b.head.map((x) => el('th', { text: x })))),
+          el('tbody', {}, b.rows.map((r) => el('tr', { dataset: { seq: r.seq || '' } },
+            r.cells.map((c) => el('td', {}, c.split('\n').flatMap((line, i) => (i ? [el('br'), line] : [line]))))))))));
+      }
+    }
+    root.append(box);
+  }
+  return root;
+}
+
+// Zum Kapitel springen und die Zeile(n) zum Feld hervorheben (z. B. OBR-24 -> Seq. 24)
+export function focusSpec(chapter, field) {
+  const sec = document.querySelector(`.spec-sec[data-chapter="${CSS.escape(chapter)}"]`);
+  if (!sec) return false;
+  document.querySelectorAll('.spec-table tr.hl').forEach((n) => n.classList.remove('hl'));
+  const seq = (/^[A-Z0-9]{3}-(\d+)/.exec(field || '') || [])[1];
+  const rows = seq ? [...sec.querySelectorAll(`tr[data-seq="${seq}"]`)] : [];
+  rows.forEach((r) => r.classList.add('hl'));
+  (rows[0] || sec).scrollIntoView({ block: rows[0] ? 'center' : 'start' });
+  return true;
+}
+
+export function renderIssues(report, specVersion, onSpecRef) {
   const root = el('div', { class: 'issues' });
   const counts = { error: 0, warning: 0, info: 0 };
   report.issues.forEach((i) => { counts[i.level]++; });
@@ -257,7 +317,7 @@ export function renderIssues(report, specVersion) {
       el('td', {}, el('span', { class: `badge b-${i.level}`, text: LEVEL[i.level] })),
       el('td', { text: i.seg != null ? String(i.seg + 1) : '–' }),
       el('td', { class: 'mono', text: i.field }),
-      el('td', { text: i.text }))))));
+      el('td', {}, linkChapters(i.text, i.field, onSpecRef)))))));
   return root;
 }
 
