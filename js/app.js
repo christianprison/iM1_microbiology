@@ -2,7 +2,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY, IDLE_LOGOUT_MINUTES } from './config.j
 import { parseHl7, Hl7Error } from './hl7.js';
 import { buildReport, SPEC_VERSION } from './micro.js';
 import { el, renderReport, renderIssues, renderStructure } from './render.js';
-import { pseudonymize, browserSalt } from './privacy.js';
+import { pseudonymize, browserSalt, decodeHl7 } from './privacy.js';
 
 const $ = (id) => document.getElementById(id);
 const configured = !SUPABASE_URL.includes('DEIN-PROJEKT') && !SUPABASE_ANON_KEY.startsWith('DEIN-');
@@ -66,34 +66,52 @@ function resetIdle() {
 
 // ---------- Datenschutz ----------
 
-// Prüft auf wahrscheinlich echte Personendaten und pseudonymisiert sie; informiert den Nutzer.
-function applyPrivacy(text) {
+// Prüft den Editorinhalt auf wahrscheinlich echte Personendaten und ersetzt sie direkt im Editor.
+// Die Änderungen werden am Sitzungseintrag vermerkt und im Hinweis angezeigt.
+let pendingChanges = [];
+function checkEditor() {
+  const ta = $('hl7');
   let res;
   try {
-    res = pseudonymize(text, browserSalt());
+    res = pseudonymize(ta.value, browserSalt());
   } catch {
-    return text;
+    return;
   }
+  if (!res.changed) return;
+  const pos = ta.selectionStart;
+  const delta = res.text.length - ta.value.length;
+  ta.value = res.text;
+  try { ta.setSelectionRange(Math.max(0, pos + delta), Math.max(0, pos + delta)); } catch { /* ignorieren */ }
+  pendingChanges.push(...res.changes);
+}
+
+function currentSessionItem() {
+  return state.current?.kind === 'session' ? state.session.find((x) => x.id === state.current.id) : null;
+}
+
+function renderPrivacyNote() {
   const note = $('privacy-note');
-  if (!res.changed) return text;
+  const changes = currentSessionItem()?.privacy || [];
+  if (!changes.length) { note.hidden = true; return; }
   note.replaceChildren(
-    el('b', { text: 'Die Nachricht enthielt vermutlich echte Personendaten und wurde pseudonymisiert:' }),
-    el('ul', {}, res.changes.map((c) => el('li', { text: c }))),
+    el('b', { text: 'Die Nachricht enthielt vermutlich echte Personendaten. Folgende Angaben wurden ersetzt:' }),
+    el('ul', {}, changes.map((c) => el('li', { text: c }))),
     el('div', { class: 'small', text: 'Freitexte bitte zusätzlich prüfen – dort können weitere Personendaten stehen.' }),
     el('button', { type: 'button', class: 'link', text: 'Hinweis schließen', onclick: () => { note.hidden = true; } }));
   note.hidden = false;
-  return res.text;
 }
 
-function onPaste() {
-  // Einfügen abwarten, dann den gesamten Inhalt prüfen
-  setTimeout(() => {
-    const ta = $('hl7');
-    const checked = applyPrivacy(ta.value);
-    if (checked !== ta.value) ta.value = checked;
-    syncEditor();
-    update();
-  }, 0);
+// Prüfen, in die Sitzung übernehmen, Hinweis aktualisieren, neu darstellen
+function onEditorChange() {
+  checkEditor();
+  syncEditor();
+  const m = currentSessionItem();
+  if (m && pendingChanges.length) {
+    m.privacy = [...new Set([...(m.privacy || []), ...pendingChanges])];
+  }
+  pendingChanges = [];
+  renderPrivacyNote();
+  update();
 }
 
 // ---------- Nachrichtenverwaltung ----------
@@ -185,10 +203,11 @@ function renderList() {
 
 function show(current, title, hl7) {
   state.current = current;
-  $('privacy-note').hidden = true;
+  pendingChanges = [];
   $('title').value = title;
   $('hl7').value = hl7;
   renderList();
+  renderPrivacyNote();
   update();
 }
 
@@ -250,12 +269,11 @@ function loadFile(ev) {
   if (file.size > 200_000) { toast('Datei zu groß (max. 200 KB).'); return; }
   const reader = new FileReader();
   reader.onload = () => {
-    const hl7 = applyPrivacy(String(reader.result));
-    const m = addSession(file.name.replace(/\.[^.]+$/, ''), hl7);
-    $('hl7').value = m.hl7;
-    update();
+    const text = decodeHl7(new Uint8Array(reader.result));
+    show(null, file.name.replace(/\.[^.]+$/, ''), text);
+    onEditorChange();
   };
-  reader.readAsText(file);
+  reader.readAsArrayBuffer(file);
   ev.target.value = '';
 }
 
@@ -341,6 +359,7 @@ async function onSession(session) {
     state.examples = [];
     state.session = [];
     state.current = null;
+    pendingChanges = [];
     $('privacy-note').hidden = true;
     $('hl7').value = '';
     $('title').value = '';
@@ -373,8 +392,9 @@ function init() {
   $('btn-new').addEventListener('click', newMessage);
   $('title').addEventListener('input', debounce(onTitleChange, 300));
   $('file').addEventListener('change', loadFile);
-  $('hl7').addEventListener('input', debounce(() => { syncEditor(); update(); }, 250));
-  $('hl7').addEventListener('paste', onPaste);
+  // Prüfung bei jeder Änderung (Tippen, Einfügen, Drag & Drop); Einfügen sofort
+  $('hl7').addEventListener('input', debounce(onEditorChange, 250));
+  $('hl7').addEventListener('paste', () => setTimeout(onEditorChange, 0));
   $('tab-report').addEventListener('click', () => setView('report'));
   $('tab-issues').addEventListener('click', () => setView('issues'));
   $('tab-structure').addEventListener('click', () => setView('structure'));

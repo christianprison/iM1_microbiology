@@ -44,26 +44,28 @@ function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+// Feldweise Prüfung: Patientendaten werden nur ersetzt, wenn der Patientenname (PID-5) echt wirkt;
+// Namen von Mitarbeitenden und Angehörigen werden unabhängig davon einzeln geprüft.
 /**
  * @returns {{ text: string, changed: boolean, changes: string[] }}
  */
 export function pseudonymize(text, salt) {
-  const lines = text.replace(/^﻿/, '').split(/\r\n|\r|\n/);
+  const lines = text.replace(/^\uFEFF/, '').split(/\r\n|\r|\n/);
   const msh = lines.find((l) => l.startsWith('MSH'));
   if (!msh) return { text, changed: false, changes: [] };
   const F = msh.charAt(3) || '|';
   const C = msh.charAt(4) || '^';
+  const hasLetters = (v) => /[A-Za-zÄÖÜäöüß]{2,}/.test(v || '');
 
-  // 1) Entscheiden, ob echte Daten vorliegen
   const pidLine = lines.find((l) => l.startsWith(`PID${F}`));
-  if (!pidLine) return { text, changed: false, changes: [] };
-  const pid = pidLine.split(F);
+  const pid = pidLine ? pidLine.split(F) : [];
   const name = (pid[5] || '').split('~')[0];
-  const nameParts = name.split(C).map((p) => p.trim()).filter((p) => /[A-Za-zÄÖÜäöüß]{2,}/.test(p));
-  if (!nameParts.length || looksAnonymized(name)) return { text, changed: false, changes: [] };
+  const nameParts = name.split(C).map((p) => p.trim()).filter(hasLetters);
+  const realPatient = nameParts.length > 0 && !looksAnonymized(name);
 
   const changes = new Set();
-  const realNames = nameParts.filter((p) => p.length >= 3 && !/^(DR|PROF|HR|FR|MR|MRS|MS|HERR|FRAU)\.?$/i.test(p));
+  const realNames = realPatient
+    ? nameParts.filter((p) => p.length >= 3 && !/^(DR|PROF|HR|FR|MR|MRS|MS|HERR|FRAU)\.?$/i.test(p)) : [];
   const patientId = (pid[3] || '').split(C)[0];
   const idMap = new Map();
   const pseudoId = (prefix, v) => {
@@ -77,7 +79,7 @@ export function pseudonymize(text, salt) {
     const f = line.split(F);
     const seg = f[0];
 
-    if (seg === 'PID') {
+    if (seg === 'PID' && realPatient) {
       const code = hashCode(salt, `name:${patientId || name}`, 6);
       f[5] = `MUSTER${C}PATIENT ${code}`;
       changes.add('PID-5 Patientenname ersetzt');
@@ -94,18 +96,18 @@ export function pseudonymize(text, salt) {
       for (const [i, label] of Object.entries(PID_CLEAR)) {
         if (f[i]) { f[i] = ''; changes.add(`PID-${i} ${label} entfernt`); }
       }
-    } else if (seg === 'PV1' && f[19]) {
+    } else if (seg === 'PV1' && realPatient && f[19]) {
       const comps = f[19].split(C);
       comps[0] = pseudoId('F', comps[0]);
       f[19] = comps.join(C);
       changes.add('PV1-19 Fallnummer pseudonymisiert');
-    } else if (seg === 'NK1') {
+    } else if (seg === 'NK1' && (realPatient || (hasLetters(f[2]) && !looksAnonymized(f[2])))) {
       changes.add('NK1 Angaben zu Angehörigen entfernt');
       return null;
     }
 
     for (const i of STAFF_FIELDS[seg] || []) {
-      if (f[i] && /[A-Za-zÄÖÜäöüß]{2,}/.test(f[i]) && !looksAnonymized(f[i])) {
+      if (f[i] && hasLetters(f[i]) && !looksAnonymized(f[i])) {
         f[i] = `${C}MUSTERARZT`;
         changes.add(`${seg}-${i} Name von Mitarbeitenden ersetzt`);
       }
@@ -113,7 +115,7 @@ export function pseudonymize(text, salt) {
     return f.join(F);
   }).filter((l) => l !== null);
 
-  // 2) Patientenname auch in Freitexten (NTE, OBX) ersetzen
+  // Patientenname auch in Freitexten (NTE, OBX) ersetzen
   const res = realNames.map((n) => new RegExp(`(?<![A-Za-zÄÖÜäöüß])${escapeRegex(n)}(?![A-Za-zÄÖÜäöüß])`, 'gi'));
   const result = out.map((line) => {
     if (!/^(NTE|OBX)/.test(line)) return line;
@@ -122,7 +124,25 @@ export function pseudonymize(text, salt) {
     if (l !== line) changes.add('Patientenname in Freitext ersetzt');
     return l;
   }).join('\r');
+  if (!changes.size) return { text, changed: false, changes: [] };
   return { text: result, changed: true, changes: [...changes] };
+}
+
+// Dateiinhalt dekodieren: UTF-8, sonst Zeichensatz aus MSH-18 (z. B. 8859/1, 8859/15), sonst Windows-1252
+export function decodeHl7(bytes) {
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    const head = new TextDecoder('latin1').decode(bytes.slice(0, 2000));
+    const msh = head.split(/\r|\n/).find((l) => l.startsWith('MSH')) || '';
+    const cs = (msh.split(msh.charAt(3) || '|')[17] || '').toUpperCase();
+    const map = { '8859/1': 'iso-8859-1', '8859/15': 'iso-8859-15', '8859/2': 'iso-8859-2', 'UNICODE UTF-8': 'utf-8' };
+    try {
+      return new TextDecoder(map[cs] || 'windows-1252').decode(bytes);
+    } catch {
+      return new TextDecoder('windows-1252').decode(bytes);
+    }
+  }
 }
 
 // Browserseitiger Schlüssel für stabile Pseudonyme

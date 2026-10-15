@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { pseudonymize, looksAnonymized } from '../js/privacy.js';
+import { pseudonymize, looksAnonymized, decodeHl7 } from '../js/privacy.js';
 import { parseHl7, get } from '../js/hl7.js';
 import { buildReport } from '../js/micro.js';
 
@@ -56,4 +56,31 @@ test('Pseudonyme sind stabil je Schlüssel und verschieden zwischen Schlüsseln'
   const c = pseudonymize(REAL, 'other').text;
   assert.equal(a, b);
   assert.notEqual(a, c);
+});
+
+test('Testpatient: Patientendaten bleiben, echte Mitarbeiternamen werden ersetzt', () => {
+  const msg = [
+    'MSH|^~\\&|LAB||iMedOne||20260101120000||ORU^R01|X1|P|2.4',
+    'PID|1||0100592873^^^^PI||Muster^Susi^^^^^L||19910326|F|||Musterstraße 9c^^Musterstadt',
+    'PV1|1|I|||||||||||||||||0072152031',
+    'OBR|1||123|WU^Wunde|||20150115081224||||||||||||||||||F|||||||Schmidt (js)',
+  ].join('\r');
+  const res = pseudonymize(msg, 'salt');
+  assert.deepEqual(res.changes, ['OBR-32 Name von Mitarbeitenden ersetzt']);
+  assert.match(res.text, /Muster\^Susi/);
+  assert.match(res.text, /19910326/);
+  assert.match(res.text, /0100592873/);
+  assert.doesNotMatch(res.text, /Schmidt/);
+});
+
+test('Reiner Testdatensatz bleibt unverändert', () => {
+  const msg = 'MSH|^~\\&|LAB||iMedOne||20260101120000||ORU^R01|X1|P|2.4\rPID|1||1||Muster^Susi||19910326|F\rPV1|1|I||||12^DR MUSTERARZT';
+  assert.equal(pseudonymize(msg, 'salt').changed, false);
+});
+
+test('Zeichensatz: ISO-8859-15 laut MSH-18 wird korrekt dekodiert', () => {
+  const text = 'MSH|^~\\&|A|B|C|D|20150115081224||ORU^R01|1|P|2.6|||AL|AL|DE|8859/15\rPID|1||1||Muster^Susi|||F|||Musterstraße 9c';
+  const bytes = Uint8Array.from(text, (c) => c.charCodeAt(0)); // ß = 0xDF in ISO-8859-15
+  assert.match(decodeHl7(bytes), /Musterstraße/);
+  assert.equal(decodeHl7(new TextEncoder().encode('MSH|^~\\&|ä')), 'MSH|^~\\&|ä');
 });

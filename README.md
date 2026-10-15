@@ -35,15 +35,19 @@ Festlegungen, die nicht in der Spezifikation stehen:
 
 Nachrichten der Nutzer werden nicht gespeichert: Sie existieren nur im Arbeitsspeicher des Browserfensters (Liste „Diese Sitzung“) und sind nach Abmelden oder Schließen verworfen. Die Datenbank enthält nur die gemeinsamen Beispiele und ist für Nutzer schreibgeschützt.
 
-Zusätzlich prüft die App beim Einfügen und beim Laden einer Datei jede Nachricht (`js/privacy.js`). Enthält der Patientenname (PID-5) keinen Hinweis auf Test- oder Musterdaten (Muster, Test, Demo, Beispiel, Dummy, Sample, Anonym …), gilt die Nachricht als wahrscheinlich echt und wird pseudonymisiert:
+Zusätzlich prüft die App bei jeder Änderung im Editor (Laden, Einfügen, Tippen, Drag & Drop) die Nachricht (`js/privacy.js`) und ersetzt erkannte Personendaten direkt im Editor:
 
-- PID-5 Name → `MUSTER^PATIENT <Code>`, PID-7 Geburtsdatum → 01.01. des Geburtsjahres
-- PID-3 Patientennummer und PV1-19 Fallnummer → stabile Pseudonyme (Fall-/Patientenansicht bleibt nutzbar)
-- Adresse, Telefon, Sozialversicherungs-/Konto- und weitere Kennungen in PID werden gelöscht, NK1 (Angehörige) entfernt
-- Namen von Mitarbeitenden (PV1, ORC, OBR, OBX) → `MUSTERARZT`
-- Vor- und Nachname des Patienten werden auch in OBX- und NTE-Freitexten ersetzt
+- **Patient:** Enthält PID-5 keinen Hinweis auf Test- oder Musterdaten (Muster, Test, Demo, Beispiel, Dummy, Sample, Anonym …), gilt der Patient als echt:
+  - PID-5 Name → `MUSTER^PATIENT <Code>`, PID-7 Geburtsdatum → 01.01. des Geburtsjahres
+  - PID-3 Patientennummer und PV1-19 Fallnummer → stabile Pseudonyme (Fall-/Patientenansicht bleibt nutzbar)
+  - Adresse, Telefon, Sozialversicherungs-/Konto- und weitere Kennungen in PID werden gelöscht, NK1 (Angehörige) entfernt
+  - Vor- und Nachname des Patienten werden auch in OBX- und NTE-Freitexten ersetzt
+  - Bei einem Testpatienten bleiben diese Angaben unverändert.
+- **Mitarbeitende und Angehörige:** werden unabhängig vom Patienten feldweise geprüft. Namen ohne Testhinweis (PV1, ORC, OBR, OBX) → `MUSTERARZT`, NK1 mit echtem Namen wird entfernt.
 
-Der Nutzer erhält einen Hinweis mit allen Änderungen. Die Pseudonyme werden mit einem zufälligen Schlüssel gebildet, der nur im Browser des Nutzers liegt. Grenzen: Andere Personendaten in Freitexten (z. B. Namen von Angehörigen) werden nicht sicher erkannt.
+Der Hinweis über dem Editor listet die Ersetzungen der jeweiligen Nachricht. Die Pseudonyme werden mit einem zufälligen Schlüssel gebildet, der nur im Browser des Nutzers liegt. Grenzen: Andere Personendaten in Freitexten (z. B. Namen von Angehörigen) werden nicht sicher erkannt; Felder für Mitarbeitende, die eine Abteilung statt einer Person enthalten, werden ebenfalls ersetzt.
+
+Dateien werden als UTF-8 gelesen, sonst im Zeichensatz aus MSH-18 (z. B. `8859/1`, `8859/15`), ersatzweise Windows-1252.
 
 ## Einrichtung
 
