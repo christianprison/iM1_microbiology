@@ -24,6 +24,7 @@ let pendingSpecRef = null;
 
 function showLogin() {
   $('app').hidden = true;
+  $('app-footer').hidden = true;
   $('login').hidden = false;
   $('login-step-mail').hidden = false;
   $('login-step-code').hidden = true;
@@ -408,6 +409,7 @@ async function onSession(session) {
   }
   $('login').hidden = true;
   $('app').hidden = false;
+  $('app-footer').hidden = false;
   $('user-email').textContent = state.user.email;
   resetIdle();
   update();
