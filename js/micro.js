@@ -110,6 +110,16 @@ export function buildReport(msg) {
   if (!segments.some((s) => s.name === 'PID')) issue('error', null, 'PID', 'PID-Segment fehlt.');
   if (report.type === 'ORU^R01' && !report.obrs.length) issue('error', null, 'OBR', 'Keine OBR-Segmente in der Ergebnisnachricht.');
 
+  // Abschnitte mit Antibiotika (Wirkstoffgruppe in OBX-17 oder Bewertung S/I/R) ohne OBR-31 = ABG
+  for (const obr of report.obrs) {
+    if (obr.kind === 'ABG') continue;
+    const abx = obr.observations.filter((o) => o.type !== 'IS' && (o.method || /^(S|I|R|SDD|NS)$/.test(o.flag)));
+    if (abx.length) {
+      issue('warning', { index: obr.segIndex }, 'OBR-31',
+        `Abschnitt „${obr.text || obr.code}“ enthält ${abx.length} Antibiotika-Zeile(n) (Wirkstoffgruppe in OBX-17 bzw. S/I/R in OBX-8), OBR-31 ist aber ${obr.kind ? `„${obr.kind}“` : 'leer'} statt „ABG“ (1.2.3).`);
+    }
+  }
+
   report.groups = buildGroups(report, issue);
   issues.sort((a, b) => (a.seg ?? -1) - (b.seg ?? -1));
   return report;

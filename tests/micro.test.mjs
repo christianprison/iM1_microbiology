@@ -163,4 +163,8 @@ test('OBX-8: Antibiotika ohne ABG (Gruppe in OBX-17 oder S/I/R) erzeugen keine W
   const w = r.issues.filter((i) => i.field === 'OBX-8');
   assert.equal(w.length, 1);
   assert.match(w[0].text, /\*\*/);
+  const obr31 = r.issues.filter((i) => i.field === 'OBR-31');
+  assert.equal(obr31.length, 1);
+  assert.equal(obr31[0].level, 'warning');
+  assert.match(obr31[0].text, /2 Antibiotika-Zeile/);
 });
